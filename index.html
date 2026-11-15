@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#f59e0b">
+<title>Scuffed Boots</title>
+<link rel="icon" href="./logo.png">
+<style>
+:root{--p:#f59e0b;--pd:#d97706;--bg:#f8fafc;--t:#1e293b;--s2:#e2e8f0;--red:#ef4444;--blue:#3b82f6}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+body{margin:0;background:var(--bg);color:var(--t);height:100vh;overflow:hidden}
+.hide{display:none!important}
+#app{height:100%;display:flex;flex-direction:column}
+header{background:#fff;border-bottom:1px solid var(--s2);padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:.5rem;font-weight:800;cursor:pointer}.logo img{width:40px;height:40px;object-fit:contain}
+main{flex:1;overflow-y:auto;padding:1rem}
+nav{background:#fff;border-top:1px solid var(--s2);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border:0;padding:.7rem .3rem;color:#94a3b8;font-size:.75rem;font-weight:700}nav button.on{color:var(--pd)}
+.card{background:#fff;border:1px solid var(--s2);border-radius:12px;padding:1rem;margin-bottom:.75rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.btn{border:0;border-radius:8px;padding:.7rem 1rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;text-decoration:none;font-size:.9rem}
+.btn:active{transform:scale(.98)}.sm{padding:.45rem .7rem;font-size:.8rem}.w{width:100%}
+.p{background:var(--p);color:#000}.o{background:#fff;border:1px solid var(--s2);color:var(--t)}.d{background:#fee2e2;color:var(--red);border:1px solid #fecaca}.b{background:#dbeafe;color:var(--blue);border:1px solid #bfdbfe}.g{background:rgba(255,255,255,.1);color:#fff}
+.ic{background:none;border:0;color:#94a3b8;font-size:1.1rem;padding:.4rem;cursor:pointer}
+.in{width:100%;padding:.75rem;border:1px solid var(--s2);border-radius:8px;font-size:1rem;margin-bottom:.6rem;background:#fff}
+.row{display:flex;gap:.5rem;margin-bottom:.8rem;flex-wrap:wrap}
+.badge{font-size:.62rem;padding:2px 6px;border-radius:5px;font-weight:800;margin-left:6px;text-transform:uppercase}.nw{background:#fef08a;color:#854d0e}.tm{background:#1e40af;color:#fff}
+.av{width:40px;height:40px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#64748b;margin-right:12px;flex:none}
+.sub{font-size:.8rem;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ov{position:fixed;inset:0}.land{background:linear-gradient(135deg,#0f172a,#451a03);color:#fff;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem;gap:.8rem}
+.land h1{font-size:2.3rem;margin:0;color:#fde68a}.land img{width:180px;height:180px;object-fit:contain}.land .btn{width:100%;max-width:300px}
+#ksel{background:#0f172a;color:#fff;z-index:30;padding:2rem;overflow-y:auto}
+#kiosk{background:#0f172a;color:#fff;z-index:100;display:flex;flex-direction:column}
+.kh{padding:1.2rem;background:#1e293b;display:flex;justify-content:space-between;align-items:center;gap:1rem}
+.km{padding:2rem;flex:1;overflow-y:auto}.kb{background:#fff;color:#0f172a;width:100%;padding:1.3rem;border-radius:16px;font-size:1.2rem;font-weight:700;margin-bottom:1rem;text-align:left;border:0}
+.kf{background:#fff;color:#0f172a;padding:2rem;border-radius:1rem}.kf label{font-weight:700;font-size:.75rem;color:#64748b}
+.pinv{background:rgba(0,0,0,.9);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:1.5rem}.pad button{width:78px;height:78px;border-radius:50%;background:#334155;border:0;color:#fff;font-size:1.9rem;font-weight:700}.pad button:active{background:var(--p);color:#000}
+.mod{background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem}.mc{background:#fff;color:#0f172a;width:100%;max-width:420px;padding:1.5rem;border-radius:16px;max-height:85vh;overflow-y:auto}
+.fab{position:fixed;bottom:80px;right:20px;border-radius:50%;width:56px;height:56px;font-size:1.6rem}
+.chip{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem .75rem;border-radius:8px;border:1px solid var(--s2);font-weight:700;font-size:.9rem;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="land" class="ov land">
+  <img src="./logo.png" alt="" onerror="this.style.display='none'">
+  <h1>SCUFFED BOOTS</h1>
+  <div style="color:#cbd5e1;letter-spacing:2px;font-size:.8rem;font-weight:700">VAULT MANAGER • FIRESTORE</div>
+  <button class="btn p" style="font-size:1.1rem" onclick="sb.pinAsk('admin')">Enter App</button>
+  <button class="btn g" onclick="sb.fs()">⛶ Fullscreen</button>
+  <div id="st" style="color:#94a3b8;font-size:.8rem">Connecting…</div>
+</div>
+
+<div id="app" class="hide">
+  <header>
+    <div class="logo" onclick="sb.home()"><img src="./logo.png" alt="" onerror="this.style.display='none'"><span>Scuffed Boots</span></div>
+    <div style="display:flex;align-items:center;gap:.3rem"><span id="hact"></span>
+      <button class="ic" style="color:var(--blue)" title="Import old backup" onclick="sb.impModal()">⬆</button>
+      <button class="ic" style="color:var(--red)" onclick="sb.home()">⏻</button></div>
+  </header>
+  <main id="main"></main>
+  <nav>
+    <button data-t="events" class="on" onclick="sb.nav('events')">📅<br>Events</button>
+    <button data-t="dancers" onclick="sb.nav('dancers')">👥<br>Dancers</button>
+    <button data-t="team" onclick="sb.nav('team')">⭐<br>Team</button>
+    <button data-t="reports" onclick="sb.nav('reports')">📊<br>Reports</button>
+  </nav>
+</div>
+
+<div id="ksel" class="ov hide">
+  <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem"><button class="btn g" onclick="sb.kselExit()">← Back</button><h2 style="margin:0">Select Event for Kiosk</h2></div>
+  <div id="kselList"></div>
+</div>
+
+<div id="kiosk" class="ov hide">
+  <div class="kh">
+    <div><div style="color:var(--p);font-size:.75rem;font-weight:700;letter-spacing:1px">CHECKING IN</div><div id="kname" style="font-size:1.5rem;font-weight:900"></div></div>
+    <div id="kctl" style="display:flex;gap:.7rem;align-items:center">
+      <button class="btn b sm" onclick="sb.qr()">📲 Self Check-In</button>
+      <button class="ic" style="color:#94a3b8" onclick="sb.fs()">⛶</button>
+      <button class="ic" style="color:var(--red)" onclick="sb.pinAsk('kiosk')">🔒</button>
+    </div>
+  </div>
+  <div class="km">
+    <div id="k1">
+      <h2 style="text-align:center">Find Your Name</h2>
+      <input id="ks" class="in" style="font-size:1.4rem;padding:1.1rem;border:4px solid var(--p)" placeholder="Start typing..." oninput="sb.kList()">
+      <button class="kb" style="background:rgba(255,255,255,.1);color:#94a3b8;text-align:center;border:2px dashed #475569" onclick="sb.kNew()">+ I'm New</button>
+      <div id="kl"></div>
+    </div>
+    <div id="k2" class="hide"><h2 style="text-align:center">Registration</h2>
+      <div class="kf"><label>FULL NAME</label><input id="nn" class="in"><label>EMAIL</label><input id="ne" class="in" type="email"><label>PHONE (optional)</label><input id="np" class="in" type="tel">
+        <div class="row"><button class="btn o" style="flex:1" onclick="sb.kReset()">Cancel</button><button class="btn p" style="flex:1" onclick="sb.kReg()">Check In</button></div></div></div>
+    <div id="k3" class="hide" style="text-align:center">
+      <div style="font-size:4rem;color:#22c55e">✔</div>
+      <h2 id="kw" style="font-size:2.3rem;margin:.3rem"></h2>
+      <p style="color:#86efac;font-size:1.2rem">You are checked in!</p>
+      <h3 style="color:#fde68a">Drop a tip in the jar!</h3>
+      <div style="display:flex;gap:1.5rem;justify-content:center;flex-wrap:wrap;margin-bottom:1.5rem">
+        <div style="background:#fff;padding:12px;border-radius:16px"><a href="https://venmo.com/scuffedbootsdance" target="_blank" style="text-decoration:none;color:#3b82f6;font-weight:800">Venmo</a><br><img src="./4436.png" alt="Venmo QR" width="220" height="220"></div>
+        <div style="background:#fff;padding:12px;border-radius:16px"><a href="https://paypal.me/scuffedbootsdance" target="_blank" style="text-decoration:none;color:#0079C1;font-weight:800">PayPal</a><br><img src="./4437.jpg" alt="PayPal QR" width="220" height="220"></div>
+      </div>
+      <button class="btn g" onclick="sb.kDone()">← Done</button>
+    </div>
+  </div>
+</div>
+
+<div id="pinv" class="ov pinv hide">
+  <h2 id="pt">Enter PIN</h2><div id="pd" style="font-size:2rem;letter-spacing:1rem;min-height:40px">____</div>
+  <div class="pad" id="pad"></div>
+</div>
+<div id="modal" class="ov mod hide" onclick="if(event.target.id=='modal')sb.close()"><div id="mb" class="mc"></div></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch }
+  from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+// 🔧 PASTE YOUR FIREBASE CONFIG (Project settings → General → Your apps)
+const cfg = { apiKey:"YOUR_API_KEY", authDomain:"YOUR_PROJECT.firebaseapp.com", projectId:"YOUR_PROJECT_ID", storageBucket:"YOUR_PROJECT.appspot.com", messagingSenderId:"YOUR_SENDER_ID", appId:"YOUR_APP_ID" };
+const ADMIN_PIN="0509", EXIT_PIN="0000";
+
+const fb = initializeApp(cfg);
+const db = initializeFirestore(fb,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
+const S = {events:[],dancers:[],att:[]};
+const $ = id => document.getElementById(id);
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today = () => new Date().toISOString().split('T')[0];
+const w = p => p.catch(e=>alert('Cloud error: '+e.message));
+const aid = (e,s,d) => `${e}_${s}_${d}`;
+const isPresent = (e,s,d) => S.att.some(a=>a.eventId==e&&a.studentId==s&&a.date==d);
+const isNew = d => d && (Date.now()-new Date(d))/864e5 <= 7;
+const byName = (a,b) => (a.name||'').localeCompare(b.name||'');
+let tab='events', ev=null, date=today(), kev=null, selfMode=false, pinMode='', pin='', kt=null, emails=[], search='';
+
+const csvRows = t => {const r=[];let c=[],f='',q=0;for(let i=0;i<t.length;i++){const h=t[i];if(q){if(h=='"'){if(t[i+1]=='"'){f+='"';i++}else q=0}else f+=h}else if(h=='"')q=1;else if(h==','){c.push(f);f=''}else if(h=='\n'||h=='\r'){if(h=='\r'&&t[i+1]=='\n')i++;c.push(f);f='';r.push(c);c=[]}else f+=h}if(f||c.length){c.push(f);r.push(c)}return r.filter(x=>x.join('').trim())};
+const dl = (name, rows) => {const csv=rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();a.remove()};
+async function batch(ops){for(let i=0;i<ops.length;i+=400){const b=writeBatch(db);ops.slice(i,i+400).forEach(o=>o(b));await b.commit()}}
+
+const sb = window.sb = {
+  fs(){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})},
+  home(){$('app').classList.add('hide');$('land').classList.remove('hide')},
+  nav(t){tab=t;ev=null;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));sb.render()},
+  close(){$('modal').classList.add('hide')},
+  modal(h){$('mb').innerHTML=h;$('modal').classList.remove('hide')},
+
+  // ---- PIN ----
+  pinAsk(m){pinMode=m;pin='';$('pt').innerText=m=='admin'?'Enter Admin PIN':'Enter PIN to Exit';$('pd').innerText='____';$('pinv').classList.remove('hide')},
+  pinIn(n){if(pin.length>=4)return;pin+=n;$('pd').innerText='*'.repeat(pin.length);if(pin.length<4)return;
+    if(pinMode=='admin'&&pin==ADMIN_PIN){$('pinv').classList.add('hide');$('land').classList.add('hide');$('app').classList.remove('hide');sb.render()}
+    else if(pinMode=='kiosk'&&pin==EXIT_PIN){$('pinv').classList.add('hide');$('kiosk').classList.add('hide');$('app').classList.remove('hide')}
+    else{$('pd').innerText='FAIL';setTimeout(()=>{pin='';$('pd').innerText='____'},800)}},
+
+  render(){const m=$('main'),h=$('hact');h.innerHTML='';
+    if(ev)return sb.rAtt(m,h);
+    if(tab=='events')sb.rEv(m,h);else if(tab=='dancers')sb.rDan(m);else if(tab=='team')sb.rTeam(m);else sb.rRep(m)},
+
+  // ---- events ----
+  rEv(m,h){h.innerHTML='<button class="btn p sm" onclick="sb.kselShow()">🚀 KIOSK</button>';
+    m.innerHTML='<h2 style="margin-top:0">Events</h2>'+S.events.map(e=>`<div class="card" onclick="sb.openEv('${e.id}')"><b>${esc(e.name)}</b><button class="ic" onclick="event.stopPropagation();sb.delEv('${e.id}')">🗑</button></div>`).join('')+'<button class="btn o w" style="border:2px dashed #cbd5e1" onclick="sb.addEv()">+ Add Event</button>'},
+  addEv(){const n=prompt('Event name');if(n&&n.trim()){const e={id:Date.now(),name:n.trim()};w(setDoc(doc(db,'events',String(e.id)),e))}},
+  delEv(id){if(!confirm('Delete this event and its attendance?'))return;
+    batch([b=>b.delete(doc(db,'events',String(id))),...S.att.filter(a=>a.eventId==id).map(a=>b=>b.delete(doc(db,'attendance',aid(a.eventId,a.studentId,a.date))))]).catch(e=>alert(e.message))},
+  openEv(id){ev=S.events.find(e=>e.id==id);date=today();search='';sb.render()},
+
+  // ---- attendance ----
+  rAtt(m,h){h.innerHTML='<button class="btn o sm" onclick="ev=null;sb.render()">← Back</button>';
+    m.innerHTML=`<div style="background:#fff;margin:-1rem -1rem 1rem;padding:1rem;border-bottom:1px solid var(--s2)">
+      <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">${esc(ev.name)}</h2><span id="cnt" style="background:#dcfce7;color:#166534;padding:.25rem .75rem;border-radius:99px;font-weight:700;font-size:.8rem"></span></div>
+      <div class="row" style="margin-top:.7rem"><input type="date" class="in" style="flex:1;margin:0" value="${date}" onchange="date=this.value;sb.attList()">
+        <button class="btn o sm" onclick="sb.hist()">History</button><button class="btn b sm" onclick="sb.emailGroup('att')">📧 Email</button></div>
+      <h3 style="font-size:.8rem;color:#64748b;text-transform:uppercase">Team Check-In</h3><div id="tl" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem"></div>
+      <h3 style="font-size:.8rem;color:#64748b;text-transform:uppercase">Dancer Check-In</h3>
+      <input class="in" style="margin:0" placeholder="Search dancers to check in..." value="${esc(search)}" oninput="search=this.value;sb.attList()"></div><div id="al"></div>`;
+    sb.attList()},
+  attList(){if(!ev||!$('al'))return;date=$('main').querySelector('input[type=date]')?.value||date;
+    const pc=S.att.filter(a=>a.eventId==ev.id&&a.date==date).length;$('cnt').innerText=pc+' Present';
+    const team=S.dancers.filter(x=>x.isTeamMember).sort(byName);
+    $('tl').innerHTML=team.length?team.map(x=>{const p=isPresent(ev.id,x.id,date);return `<label class="chip" style="background:${p?'#dbeafe':'#f1f5f9'}"><input type="checkbox" ${p?'checked':''} onchange="sb.tog('${x.id}')">${esc(x.name)}</label>`}).join(''):'<span class="sub">No team members yet.</span>';
+    const s=search.toLowerCase();
+    const f=S.dancers.filter(x=>{if(x.isTeamMember&&!s)return false;return s?(x.name||'').toLowerCase().includes(s):isPresent(ev.id,x.id,date)}).sort(byName);
+    $('al').innerHTML=f.length?f.map(x=>{const p=isPresent(ev.id,x.id,date);return `<div class="card" onclick="sb.tog('${x.id}')" style="cursor:pointer;${p?'background:#22c55e;color:#fff;border-color:#16a34a':''}"><b>${esc(x.name)}</b>${p?'✔':''}</div>`}).join(''):`<div style="text-align:center;color:#94a3b8;padding:2rem">${s?'No results found.':'No dancers checked in yet. Search above to check someone in.'}</div>`},
+  tog(sid){const r=doc(db,'attendance',aid(ev.id,sid,date));
+    w(isPresent(ev.id,sid,date)?deleteDoc(r):setDoc(r,{eventId:ev.id,studentId:sid,date,status:'present'}))},
+  hist(){const h={};S.att.filter(a=>a.eventId==ev.id).forEach(a=>h[a.date]=(h[a.date]||0)+1);
+    sb.modal('<h3>History</h3>'+Object.keys(h).sort().reverse().map(d=>`<div class="card" onclick="date='${d}';sb.close();sb.render()"><span>${d}</span><b>${h[d]}</b></div>`).join(''))},
+
+  // ---- dancers ----
+  rDan(m){m.innerHTML=`<div class="row"><input type="file" id="csvin" accept=".csv" class="hide" onchange="sb.impCSV(this)">
+    <button class="btn o" style="flex:1" onclick="document.getElementById('csvin').click()">📂 Import CSV</button><button class="btn o" style="flex:1" onclick="sb.expCSV()">💾 Export CSV</button></div>
+    <div class="row"><input id="ds" class="in" style="flex:2;margin:0" placeholder="Search dancers..." oninput="sb.dList()"><button class="btn b" onclick="sb.emailGroup('all')">📧 Email All</button></div>
+    <div id="dl"></div><button class="btn p fab" onclick="sb.dModal()">+</button>`;sb.dList()},
+  dCard(x,team){return `<div class="card"><div style="display:flex;align-items:center;flex:1;overflow:hidden"><div class="av">${esc((x.name||'?')[0]).toUpperCase()}</div><div style="overflow:hidden"><div style="font-weight:700">${esc(x.name)}${!team&&isNew(x.joined)?'<span class="badge nw">New</span>':''}${x.isTeamMember?'<span class="badge tm">Team</span>':''}</div>
+    ${x.email?`<div class="sub">📧 ${esc(x.email)}</div>`:''}${x.phone?`<div class="sub">📞 ${esc(x.phone)}</div>`:''}</div></div>
+    <div><button class="ic" onclick="sb.dModal('${x.id}')">✎</button>${team?'':`<button class="ic" onclick="sb.dDel('${x.id}')">🗑</button>`}</div></div>`},
+  dList(){const l=$('dl');if(!l)return;const s=($('ds')?.value||'').toLowerCase();
+    l.innerHTML=S.dancers.filter(x=>(x.name||'').toLowerCase().includes(s)).sort(byName).map(x=>sb.dCard(x)).join('')},
+  rTeam(m){m.innerHTML=`<h2 style="margin-top:0">Team Roster</h2><div class="row"><input id="ts" class="in" style="flex:2;margin:0" placeholder="Search team..." oninput="sb.tList()"><button class="btn b" onclick="sb.emailGroup('team')">📧 Email Team</button></div><div id="tlist"></div>`;sb.tList()},
+  tList(){const l=$('tlist');if(!l)return;const s=($('ts')?.value||'').toLowerCase();
+    const f=S.dancers.filter(x=>x.isTeamMember&&(x.name||'').toLowerCase().includes(s)).sort(byName);
+    l.innerHTML=f.length?f.map(x=>sb.dCard(x,1)).join(''):'<div class="card" style="display:block;text-align:center;color:#94a3b8">No team members yet. Edit a dancer to mark them as Team.</div>'},
+  dModal(id){const x=S.dancers.find(d=>d.id==id)||{};
+    sb.modal(`<h3>${id?'Edit':'Add'} Dancer</h3><input id="fn" class="in" placeholder="Name" value="${esc(x.name)}"><input id="fe" class="in" placeholder="Email" value="${esc(x.email)}"><input id="fp" class="in" placeholder="Phone" value="${esc(x.phone)}">
+    <label style="display:flex;gap:.5rem;align-items:center;margin:.5rem 0 1rem;font-weight:700;color:#64748b"><input type="checkbox" id="ft" style="width:20px;height:20px" ${x.isTeamMember?'checked':''}> Team Member</label><button class="btn p w" onclick="sb.dSave('${id||''}')">Save</button>`)},
+  dSave(id){const g=k=>$(k).value.trim();if(!g('fn'))return alert('Please enter a name.');
+    const o=S.dancers.find(d=>d.id==id)||{};const d={...o,id:id||'SBD-'+Date.now().toString(36),name:g('fn'),email:g('fe'),phone:g('fp'),isTeamMember:$('ft').checked,joined:o.joined||new Date().toISOString()};
+    w(setDoc(doc(db,'dancers',d.id),d));sb.close()},
+  dDel(id){if(confirm('Delete this dancer?'))w(deleteDoc(doc(db,'dancers',id)))},
+  expCSV(){if(!S.dancers.length)return alert('No dancers to export.');
+    dl(`ScuffedBoots_Dancers_${today()}.csv`,[['ID','Name','Email','Phone','Team Member','Joined'],...S.dancers.map(s=>[s.id,s.name,s.email,s.phone,s.isTeamMember?'Yes':'No',s.joined])])},
+  impCSV(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=async e=>{
+    const rows=csvRows(e.target.result).slice(1);const have=new Set(S.dancers.map(d=>(d.name||'').toLowerCase()));const add=[];
+    rows.forEach(c=>{const n=(c[1]||'').trim();if(n&&!have.has(n.toLowerCase())){have.add(n.toLowerCase());add.push({id:(c[0]||'').startsWith('SBD-')?c[0]:'SBD-'+Date.now().toString(36)+add.length,name:n,email:c[2]||'',phone:c[3]||'',isTeamMember:c[4]=='Yes',joined:c[5]||new Date().toISOString()})}});
+    await batch(add.map(d=>b=>b.set(doc(db,'dancers',d.id),d,{merge:true}))).catch(x=>alert(x.message));inp.value='';alert(`Imported ${add.length} new dancers!`)};r.readAsText(f)},
+
+  // ---- email ----
+  emailGroup(t){let list=S.dancers;
+    if(t=='team')list=list.filter(s=>s.isTeamMember);
+    if(t=='att'){const ids=new Set(S.att.filter(a=>a.eventId==ev.id&&a.date==date).map(a=>a.studentId));list=list.filter(s=>ids.has(s.id))}
+    emails=list.map(s=>(s.email||'').trim()).filter(Boolean);if(!emails.length)return alert('No valid email addresses found for this group.');
+    const j=emails.join(',');
+    sb.modal(`<h3 style="margin-top:0">Email Group</h3><p class="sub">${emails.length} recipient(s)</p>
+    <a class="btn p w" style="margin-bottom:.6rem" href="mailto:scuffedbootsdance@gmail.com?bcc=${encodeURIComponent(j)}">📧 Default Mail App</a>
+    <a class="btn d w" style="margin-bottom:.6rem" target="_blank" href="https://mail.google.com/mail/?view=cm&fs=1&to=scuffedbootsdance@gmail.com&bcc=${encodeURIComponent(j)}">✉️ Open in Gmail</a>
+    <button class="btn o w" onclick="navigator.clipboard.writeText(sb.emails().join(',')).then(()=>alert('Copied!'))">📋 Copy Addresses</button>`)},
+  emails:()=>emails,
+
+  // ---- reports ----
+  rRep(m){const ses=new Set(S.att.map(a=>a.eventId+a.date)).size;
+    m.innerHTML=`<h2 style="margin-top:0">Reports & Analytics</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+    <div class="card" style="display:block;text-align:center"><h1 style="margin:.4rem;color:var(--pd)">${S.att.length}</h1><small>CHECK-INS</small></div>
+    <div class="card" style="display:block;text-align:center"><h1 style="margin:.4rem;color:var(--pd)">${ses}</h1><small>SESSIONS</small></div></div>
+    <button class="btn b w" style="margin-bottom:1rem" onclick="sb.report()">📥 Download All Events</button>
+    <div class="row"><select id="rs" class="in" style="flex:2;margin:0"><option value="">-- Select Event --</option>${S.events.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</select><button class="btn o" style="flex:1" onclick="sb.report(document.getElementById('rs').value||null)">📥 Export</button></div>
+    <button class="btn d w" style="margin-top:2rem" onclick="sb.reset()">🚨 Reset All Attendance History</button>`},
+  report(id){if(id===null)return alert('Select an event first.');{const rows=S.att.filter(a=>id===undefined||a.eventId==id);if(!rows.length)return alert('No attendance records found.');
+    dl(`ScuffedBoots_Attendance_${today()}.csv`,[['Date','Event','Dancer','Email','Phone','Team Member'],...rows.sort((a,b)=>a.date.localeCompare(b.date)).map(a=>{const e=S.events.find(x=>x.id==a.eventId)||{name:'Unknown Event'},s=S.dancers.find(x=>x.id==a.studentId)||{name:'Unknown Dancer'};return [a.date,e.name,s.name,s.email,s.phone,s.isTeamMember?'Yes':'No']})])}},
+  reset(){if(prompt('Type RESET to clear all attendance history')==='RESET')batch(S.att.map(a=>b=>b.delete(doc(db,'attendance',aid(a.eventId,a.studentId,a.date))))).catch(e=>alert(e.message))},
+
+  // ---- import old backup (.json from the Supabase version) ----
+  impModal(){sb.modal(`<h3>Import Old Backup</h3><p class="sub" style="white-space:normal">Choose a ScuffedBoots_Backup .json file from the old version. Existing records are kept; matching IDs are updated.</p><input type="file" accept=".json" onchange="sb.impJSON(this)">`)},
+  impJSON(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=async e=>{try{const d=JSON.parse(e.target.result);
+    const ev=d.events||[],st=d.students||d.dancers||[],at=d.attendance||[];
+    await batch([...ev.map(x=>b=>b.set(doc(db,'events',String(x.id)),x,{merge:true})),...st.map(x=>b=>b.set(doc(db,'dancers',String(x.id)),x,{merge:true})),...at.map(x=>b=>b.set(doc(db,'attendance',aid(x.eventId,x.studentId,x.date)),{eventId:x.eventId,studentId:x.studentId,date:x.date,status:x.status||'present'},{merge:true}))]);
+    sb.close();alert(`Imported ${ev.length} events, ${st.length} dancers, ${at.length} check-ins.`)}catch(x){alert('Import failed: '+x.message)}};r.readAsText(f)},
+
+  // ---- kiosk ----
+  kselShow(){$('kselList').innerHTML=S.events.map(e=>`<button class="kb" onclick="sb.launchK('${e.id}')">${esc(e.name)}</button>`).join('');$('app').classList.add('hide');$('ksel').classList.remove('hide')},
+  kselExit(){$('ksel').classList.add('hide');$('app').classList.remove('hide')},
+  launchK(id){kev=S.events.find(e=>e.id==id);$('kname').innerText=kev.name;$('ksel').classList.add('hide');$('kiosk').classList.remove('hide');if(selfMode)$('kctl').style.display='none';sb.kReset()},
+  qr(){const url=location.href.split('?')[0].split('#')[0]+'?attend='+kev.id+'&tk='+btoa(Date.now().toString());
+    sb.modal(`<h3 style="text-align:center;margin-top:0">Self Check-In</h3><img style="width:100%;max-width:340px;display:block;margin:0 auto" alt="QR code" src="https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&data=${encodeURIComponent(url)}"><p style="text-align:center;font-weight:700;color:#64748b">Scan with your phone to skip the line!</p>`)},
+  kList(){const s=($('ks').value||'').toLowerCase();if(!s){$('kl').innerHTML='';return}
+    $('kl').innerHTML=S.dancers.filter(x=>(x.name||'').toLowerCase().includes(s)).sort(byName).map(x=>`<button class="kb" onclick="sb.kIn('${x.id}')">${esc(x.name)}</button>`).join('')},
+  kIn(sid){const d=S.dancers.find(x=>x.id==sid),dt=today();
+    if(!isPresent(kev.id,sid,dt))w(setDoc(doc(db,'attendance',aid(kev.id,sid,dt)),{eventId:kev.id,studentId:sid,date:dt,status:'present'}));
+    $('kw').innerText=d?d.name:'';['k1','k2'].forEach(i=>$(i).classList.add('hide'));$('k3').classList.remove('hide');
+    clearTimeout(kt);kt=setTimeout(sb.kDone,selfMode?20000:8000)},
+  kNew(){$('nn').value=$('ks').value;$('k1').classList.add('hide');$('k2').classList.remove('hide')},
+  kReg(){const n=$('nn').value.trim();if(!n)return alert('Please enter a name to register.');
+    const d={id:'SBD-'+Date.now().toString(36),name:n,email:$('ne').value.trim(),phone:$('np').value.trim(),isTeamMember:false,joined:new Date().toISOString()};
+    w(setDoc(doc(db,'dancers',d.id),d));S.dancers.push(d);sb.kIn(d.id)},
+  kDone(){clearTimeout(kt);sb.kReset()},
+  kReset(){['ks','nn','ne','np'].forEach(i=>$(i).value='');$('kl').innerHTML='';['k2','k3'].forEach(i=>$(i).classList.add('hide'));$('k1').classList.remove('hide')}
+};
+
+// PIN pad
+$('pad').innerHTML=[1,2,3,4,5,6,7,8,9].map(n=>`<button onclick="sb.pinIn(${n})">${n}</button>`).join('')+`<button style="background:#ef4444" onclick="pin='';document.getElementById('pd').innerText='____'">C</button><button onclick="sb.pinIn(0)">0</button><button style="background:#64748b" onclick="document.getElementById('pinv').classList.add('hide')">X</button>`;
+window.pin=''; Object.defineProperty(window,'date',{get:()=>date,set:v=>date=v}); Object.defineProperty(window,'ev',{get:()=>ev,set:v=>ev=v}); Object.defineProperty(window,'search',{get:()=>search,set:v=>search=v});
+Object.defineProperty(window,'pin',{get:()=>pin,set:v=>pin=v});
+
+// ---- self check-in link (valid 12h) ----
+const qs=new URLSearchParams(location.search), attendId=qs.get('attend');
+if(attendId){let ok=false;try{const t=parseInt(atob(qs.get('tk')));const h=(Date.now()-t)/36e5;ok=!isNaN(t)&&h<12&&h>-1}catch(e){}
+  if(!ok){alert('This check-in link has expired! Please scan the live QR code at the door.');location.href=location.origin+location.pathname}
+  else{selfMode=true;$('land').classList.add('hide')}}
+
+// ---- live sync ----
+function paint(){
+  if(!$('app').classList.contains('hide')){
+    if(ev){ev=S.events.find(e=>e.id==ev.id)||null;ev?sb.attList():sb.render()}
+    else if(tab=='dancers')sb.dList();else if(tab=='team')sb.tList();else if(tab=='events'||tab=='reports')sb.render()}
+  if(!$('kiosk').classList.contains('hide'))sb.kList();
+  if(selfMode&&!kev){const e=S.events.find(x=>x.id==attendId);if(e)sb.launchK(e.id)}
+}
+signInAnonymously(getAuth(fb)).catch(e=>{$('st').innerText='⚠️ Sign-in failed: '+e.message;$('st').style.color='#ef4444'}).finally(()=>{
+  [['events','events'],['dancers','dancers'],['attendance','att']].forEach(([c,k])=>
+    onSnapshot(collection(db,c),s=>{S[k]=s.docs.map(d=>d.data());$('st').innerText='☁️ Connected (live sync)';$('st').style.color='#4ade80';paint()},
+      e=>{$('st').innerText='⚠️ '+e.message;$('st').style.color='#ef4444'}))});
+</script>
+</body>
+</html>
