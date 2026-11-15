@@ -114,7 +114,7 @@ nav button{flex:1;background:none;border:0;padding:.7rem .3rem;color:#94a3b8;fon
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check.js";
-import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch }
   from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
@@ -145,7 +145,7 @@ async function batch(ops){for(let i=0;i<ops.length;i+=400){const b=writeBatch(db
 
 const sb = window.sb = {
   fs(){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})},
-  async enter(){const a=getAuth(fb);if(!a.currentUser||a.currentUser.isAnonymous){try{await signInWithPopup(a,new GoogleAuthProvider())}catch(e){return alert('Sign-in failed: '+e.message)}}
+  async enter(){const a=getAuth(fb);if(!a.currentUser||a.currentUser.isAnonymous){const pr=new GoogleAuthProvider();try{await signInWithPopup(a,pr)}catch(e){if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment','auth/web-storage-unsupported'].includes(e.code)){return signInWithRedirect(a,pr)}return alert('Sign-in failed: '+e.code+' — '+e.message)}}
     $('land').classList.add('hide');$('app').classList.remove('hide');sb.render()},
   out(){signOut(getAuth(fb))},
   install(){if(dip){dip.prompt();dip=null;$('inst').classList.add('hide')}},
