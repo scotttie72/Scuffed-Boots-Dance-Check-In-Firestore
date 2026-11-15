@@ -132,6 +132,7 @@ const aid = (e,s,d) => `${e}_${s}_${d}`;
 const isPresent = (e,s,d) => S.att.some(a=>a.eventId==e&&a.studentId==s&&a.date==d);
 const isNew = d => d && (Date.now()-new Date(d))/864e5 <= 7;
 const byName = (a,b) => (a.name||'').localeCompare(b.name||'');
+const hint = x => S.dancers.filter(d=>(d.name||'').trim().toLowerCase()==(x.name||'').trim().toLowerCase()).length>1 ? ` <small style="font-weight:400;color:#64748b">${esc(x.phone?'…'+x.phone.slice(-4):(x.email||'').slice(0,2)+'…')}</small>` : '';
 let tab='events', ev=null, date=today(), kev=null, selfMode=false, pinMode='', pin='', kt=null, emails=[], search='';
 
 const csvRows = t => {const r=[];let c=[],f='',q=0;for(let i=0;i<t.length;i++){const h=t[i];if(q){if(h=='"'){if(t[i+1]=='"'){f+='"';i++}else q=0}else f+=h}else if(h=='"')q=1;else if(h==','){c.push(f);f=''}else if(h=='\n'||h=='\r'){if(h=='\r'&&t[i+1]=='\n')i++;c.push(f);f='';r.push(c);c=[]}else f+=h}if(f||c.length){c.push(f);r.push(c)}return r.filter(x=>x.join('').trim())};
@@ -188,12 +189,13 @@ const sb = window.sb = {
 
   // ---- dancers ----
   rDan(m){m.innerHTML=`<div class="row"><input type="file" id="csvin" accept=".csv" class="hide" onchange="sb.impCSV(this)">
-    <button class="btn o" style="flex:1" onclick="document.getElementById('csvin').click()">📂 Import CSV</button><button class="btn o" style="flex:1" onclick="sb.expCSV()">💾 Export CSV</button></div>
+    <button class="btn o" style="flex:1" onclick="document.getElementById('csvin').click()">📂 Import CSV</button><button class="btn o" style="flex:1" onclick="sb.expCSV()">💾 Export CSV</button>
+    <button class="btn o" style="flex:1" onclick="sb.mergeDup()">👥 Merge Duplicates</button><button class="btn o" style="flex:1" onclick="sb.backup()">⬇ Backup</button></div>
     <div class="row"><input id="ds" class="in" style="flex:2;margin:0" placeholder="Search dancers..." oninput="sb.dList()"><button class="btn b" onclick="sb.emailGroup('all')">📧 Email All</button></div>
     <div id="dl"></div><button class="btn p fab" onclick="sb.dModal()">+</button>`;sb.dList()},
   dCard(x,team){return `<div class="card"><div style="display:flex;align-items:center;flex:1;overflow:hidden"><div class="av">${esc((x.name||'?')[0]).toUpperCase()}</div><div style="overflow:hidden"><div style="font-weight:700">${esc(x.name)}${!team&&isNew(x.joined)?'<span class="badge nw">New</span>':''}${x.isTeamMember?'<span class="badge tm">Team</span>':''}</div>
     ${x.email?`<div class="sub">📧 ${esc(x.email)}</div>`:''}${x.phone?`<div class="sub">📞 ${esc(x.phone)}</div>`:''}</div></div>
-    <div><button class="ic" onclick="sb.dModal('${x.id}')">✎</button>${team?'':`<button class="ic" onclick="sb.dDel('${x.id}')">🗑</button>`}</div></div>`},
+    <div><button class="ic" onclick="sb.dHist('${x.id}')">🕘</button><button class="ic" onclick="sb.dModal('${x.id}')">✎</button>${team?'':`<button class="ic" onclick="sb.dDel('${x.id}')">🗑</button>`}</div></div>`},
   dList(){const l=$('dl');if(!l)return;const s=($('ds')?.value||'').toLowerCase();
     l.innerHTML=S.dancers.filter(x=>(x.name||'').toLowerCase().includes(s)).sort(byName).map(x=>sb.dCard(x)).join('')},
   rTeam(m){m.innerHTML=`<h2 style="margin-top:0">Team Roster</h2><div class="row"><input id="ts" class="in" style="flex:2;margin:0" placeholder="Search team..." oninput="sb.tList()"><button class="btn b" onclick="sb.emailGroup('team')">📧 Email Team</button></div><div id="tlist"></div>`;sb.tList()},
@@ -214,6 +216,20 @@ const sb = window.sb = {
     rows.forEach(c=>{const n=(c[1]||'').trim();if(n&&!have.has(n.toLowerCase())){have.add(n.toLowerCase());add.push({id:(c[0]||'').startsWith('SBD-')?c[0]:'SBD-'+Date.now().toString(36)+add.length,name:n,email:c[2]||'',phone:c[3]||'',isTeamMember:c[4]=='Yes',joined:c[5]||new Date().toISOString()})}});
     await batch(add.map(d=>b=>b.set(doc(db,'dancers',d.id),d,{merge:true}))).catch(x=>alert(x.message));inp.value='';alert(`Imported ${add.length} new dancers!`)};r.readAsText(f)},
 
+  // ---- merge / backup / history ----
+  async mergeDup(){const g={};S.dancers.forEach(s=>{const k=(s.name||'').trim().toLowerCase();if(k)(g[k]=g[k]||[]).push(s)});const ops=[];let n=0;
+    for(const k in g){const a=g[k];if(a.length<2)continue;a.sort((x,y)=>new Date(x.joined||0)-new Date(y.joined||0));const sv={...a[0]};
+      a.slice(1).forEach(v=>{if(!sv.email&&v.email)sv.email=v.email;if(!sv.phone&&v.phone)sv.phone=v.phone;if(v.isTeamMember)sv.isTeamMember=true;
+        S.att.filter(t=>t.studentId==v.id).forEach(t=>{ops.push(b=>b.delete(doc(db,'attendance',aid(t.eventId,t.studentId,t.date))));ops.push(b=>b.set(doc(db,'attendance',aid(t.eventId,sv.id,t.date)),{...t,studentId:sv.id},{merge:true}))});
+        ops.push(b=>b.delete(doc(db,'dancers',v.id)));n++});
+      ops.push(b=>b.set(doc(db,'dancers',sv.id),sv,{merge:true}))}
+    if(!n)return alert('No exact name duplicates found.');
+    if(!confirm(`Merge ${n} duplicate dancer record(s)? Attendance moves to the oldest record.`))return;
+    await batch(ops).catch(e=>alert(e.message));alert(`Merged ${n} duplicates.`)},
+  backup(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({events:S.events,students:S.dancers,attendance:S.att})],{type:'application/json'}));a.download=`ScuffedBoots_Backup_${today()}.json`;a.click()},
+  dHist(id){const d=S.dancers.find(x=>x.id==id);if(!d)return;const r=S.att.filter(a=>a.studentId==id).sort((a,b)=>b.date.localeCompare(a.date));
+    sb.modal(`<h3 style="margin-top:0">${esc(d.name)}</h3><p class="sub">${r.length} check-in(s)${r[0]?' • last visit '+r[0].date:''}</p>`+(r.slice(0,30).map(a=>`<div class="card"><span>${a.date}</span><span class="sub">${esc((S.events.find(e=>e.id==a.eventId)||{name:'Unknown event'}).name)}</span></div>`).join('')||'<div class="sub">No visits yet.</div>'))},
+
   // ---- email ----
   emailGroup(t){let list=S.dancers;
     if(t=='team')list=list.filter(s=>s.isTeamMember);
@@ -228,10 +244,12 @@ const sb = window.sb = {
 
   // ---- reports ----
   rRep(m){const ses=new Set(S.att.map(a=>a.eventId+a.date)).size;
+    const ss={};S.att.forEach(a=>{const k=a.date+'|'+a.eventId;ss[k]=(ss[k]||0)+1});const recent=Object.entries(ss).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,8),mx=Math.max(1,...recent.map(r=>r[1]));
     m.innerHTML=`<h2 style="margin-top:0">Reports & Analytics</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
     <div class="card" style="display:block;text-align:center"><h1 style="margin:.4rem;color:var(--pd)">${S.att.length}</h1><small>CHECK-INS</small></div>
     <div class="card" style="display:block;text-align:center"><h1 style="margin:.4rem;color:var(--pd)">${ses}</h1><small>SESSIONS</small></div></div>
-    <button class="btn b w" style="margin-bottom:1rem" onclick="sb.report()">📥 Download All Events</button>
+    <h3 style="margin:0 0 .6rem">Recent Sessions</h3>${recent.map(([k,n])=>{const [d,e]=k.split('|');return `<div style="margin-bottom:.6rem"><div class="sub">${d} • ${esc((S.events.find(x=>x.id==e)||{name:'Unknown'}).name)} — <b>${n}</b></div><div style="background:#fcd34d;height:10px;border-radius:5px;width:${n/mx*100}%"></div></div>`}).join('')||'<div class="sub">No sessions yet.</div>'}
+    <button class="btn b w" style="margin:1rem 0" onclick="sb.report()">📥 Download All Events</button>
     <div class="row"><select id="rs" class="in" style="flex:2;margin:0"><option value="">-- Select Event --</option>${S.events.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</select><button class="btn o" style="flex:1" onclick="sb.report(document.getElementById('rs').value||null)">📥 Export</button></div>
     <button class="btn d w" style="margin-top:2rem" onclick="sb.reset()">🚨 Reset All Attendance History</button>`},
   report(id){if(id===null)return alert('Select an event first.');{const rows=S.att.filter(a=>id===undefined||a.eventId==id);if(!rows.length)return alert('No attendance records found.');
@@ -249,16 +267,19 @@ const sb = window.sb = {
   kselShow(){$('kselList').innerHTML=S.events.map(e=>`<button class="kb" onclick="sb.launchK('${e.id}')">${esc(e.name)}</button>`).join('');$('app').classList.add('hide');$('ksel').classList.remove('hide')},
   kselExit(){$('ksel').classList.add('hide');$('app').classList.remove('hide')},
   launchK(id){kev=S.events.find(e=>e.id==id);$('kname').innerText=kev.name;$('ksel').classList.add('hide');$('kiosk').classList.remove('hide');if(selfMode)$('kctl').style.display='none';sb.kReset()},
-  qr(){const url=location.href.split('?')[0].split('#')[0]+'?attend='+kev.id+'&tk='+btoa(Date.now().toString());
-    sb.modal(`<h3 style="text-align:center;margin-top:0">Self Check-In</h3><img style="width:100%;max-width:340px;display:block;margin:0 auto" alt="QR code" src="https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&data=${encodeURIComponent(url)}"><p style="text-align:center;font-weight:700;color:#64748b">Scan with your phone to skip the line!</p>`)},
+  qr(){const mk=()=>`https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&data=${encodeURIComponent(location.href.split('?')[0].split('#')[0]+'?attend='+kev.id+'&tk='+btoa(Date.now().toString()))}`;
+    sb.modal(`<h3 style="text-align:center;margin-top:0">Self Check-In</h3><img id="qrimg" style="width:100%;max-width:340px;display:block;margin:0 auto" alt="QR code" src="${mk()}"><p style="text-align:center;font-weight:700;color:#64748b">Scan with your phone to skip the line!<br><small style="font-weight:400">Code refreshes every minute</small></p>`);
+    const t=setInterval(()=>{if($('modal').classList.contains('hide'))return clearInterval(t);$('qrimg').src=mk()},60000)},
   kList(){const s=($('ks').value||'').toLowerCase();if(!s){$('kl').innerHTML='';return}
-    $('kl').innerHTML=S.dancers.filter(x=>(x.name||'').toLowerCase().includes(s)).sort(byName).map(x=>`<button class="kb" onclick="sb.kIn('${x.id}')">${esc(x.name)}</button>`).join('')},
+    $('kl').innerHTML=S.dancers.filter(x=>(x.name||'').toLowerCase().includes(s)).sort(byName).map(x=>`<button class="kb" onclick="sb.kIn('${x.id}')">${esc(x.name)}${hint(x)}</button>`).join('')},
   kIn(sid){const d=S.dancers.find(x=>x.id==sid),dt=today();
     if(!isPresent(kev.id,sid,dt))w(setDoc(doc(db,'attendance',aid(kev.id,sid,dt)),{eventId:kev.id,studentId:sid,date:dt,status:'present'}));
     $('kw').innerText=d?d.name:'';['k1','k2'].forEach(i=>$(i).classList.add('hide'));$('k3').classList.remove('hide');
     clearTimeout(kt);kt=setTimeout(sb.kDone,selfMode?20000:8000)},
   kNew(){$('nn').value=$('ks').value;$('k1').classList.add('hide');$('k2').classList.remove('hide')},
   kReg(){const n=$('nn').value.trim();if(!n)return alert('Please enter a name to register.');
+    const em=$('ne').value.trim().toLowerCase(),dup=S.dancers.find(x=>(x.name||'').trim().toLowerCase()==n.toLowerCase()||(em&&(x.email||'').toLowerCase()==em));
+    if(dup&&!confirm('Someone with this name or email is already registered. Tap Cancel and search for your name, or OK to register as a new dancer.'))return;
     const d={id:'SBD-'+Date.now().toString(36),name:n,email:$('ne').value.trim(),phone:$('np').value.trim(),isTeamMember:false,joined:new Date().toISOString()};
     w(setDoc(doc(db,'dancers',d.id),d));S.dancers.push(d);sb.kIn(d.id)},
   kDone(){clearTimeout(kt);sb.kReset()},
@@ -270,9 +291,9 @@ $('pad').innerHTML=[1,2,3,4,5,6,7,8,9].map(n=>`<button onclick="sb.pinIn(${n})">
 window.pin=''; Object.defineProperty(window,'date',{get:()=>date,set:v=>date=v}); Object.defineProperty(window,'ev',{get:()=>ev,set:v=>ev=v}); Object.defineProperty(window,'search',{get:()=>search,set:v=>search=v});
 Object.defineProperty(window,'pin',{get:()=>pin,set:v=>pin=v});
 
-// ---- self check-in link (valid 12h) ----
+// ---- self check-in link (valid 15 min) ----
 const qs=new URLSearchParams(location.search), attendId=qs.get('attend');
-if(attendId){let ok=false;try{const t=parseInt(atob(qs.get('tk')));const h=(Date.now()-t)/36e5;ok=!isNaN(t)&&h<12&&h>-1}catch(e){}
+if(attendId){let ok=false;try{const t=parseInt(atob(qs.get('tk')));const h=(Date.now()-t)/36e5;ok=!isNaN(t)&&h<0.25&&h>-1}catch(e){}
   if(!ok){alert('This check-in link has expired! Please scan the live QR code at the door.');location.href=location.origin+location.pathname}
   else{selfMode=true;$('land').classList.add('hide')}}
 
