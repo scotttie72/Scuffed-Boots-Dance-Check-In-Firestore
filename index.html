@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#f59e0b">
 <title>Scuffed Boots</title>
-<link rel="icon" href="./logo.png">
+<link rel="icon" href="./logo.png"><link rel="apple-touch-icon" href="./logo.png"><link rel="manifest" href="./manifest.webmanifest">
 <style>
 :root{--p:#f59e0b;--pd:#d97706;--bg:#f8fafc;--t:#1e293b;--s2:#e2e8f0;--red:#ef4444;--blue:#3b82f6}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
@@ -46,9 +46,9 @@ nav button{flex:1;background:none;border:0;padding:.7rem .3rem;color:#94a3b8;fon
   <img src="./logo.png" alt="" onerror="this.style.display='none'">
   <h1>SCUFFED BOOTS</h1>
   <div style="color:#cbd5e1;letter-spacing:2px;font-size:.8rem;font-weight:700">VAULT MANAGER • FIRESTORE</div>
-  <button class="btn p" style="font-size:1.1rem" onclick="sb.pinAsk('admin')">Enter App</button>
+  <button class="btn p" style="font-size:1.1rem" onclick="sb.enter()">🔑 Admin Sign-In</button><button id="inst" class="btn hide" style="background:#22c55e;color:#fff" onclick="sb.install()">📲 Install App</button>
   <button class="btn g" onclick="sb.fs()">⛶ Fullscreen</button>
-  <div id="st" style="color:#94a3b8;font-size:.8rem">Connecting…</div>
+  <div id="st" style="color:#94a3b8;font-size:.8rem">Connecting…</div><button class="btn g sm" style="max-width:150px" onclick="sb.out()">Sign out</button>
 </div>
 
 <div id="app" class="hide">
@@ -89,7 +89,7 @@ nav button{flex:1;background:none;border:0;padding:.7rem .3rem;color:#94a3b8;fon
       <div id="kl"></div>
     </div>
     <div id="k2" class="hide"><h2 style="text-align:center">Registration</h2>
-      <div class="kf"><label>FULL NAME</label><input id="nn" class="in"><label>EMAIL</label><input id="ne" class="in" type="email"><label>PHONE (optional)</label><input id="np" class="in" type="tel">
+      <div class="kf"><label>FULL NAME</label><input id="nn" class="in"><label>EMAIL</label><input id="ne" class="in" type="email"><label>PHONE (optional)</label><input id="np" class="in" type="tel"><label style="display:flex;gap:.6rem;align-items:center;margin:.3rem 0 1rem;font-size:.85rem;color:#0f172a;font-weight:600"><input type="checkbox" id="nw" style="width:24px;height:24px;flex:none"><span id="wt"></span></label>
         <div class="row"><button class="btn o" style="flex:1" onclick="sb.kReset()">Cancel</button><button class="btn p" style="flex:1" onclick="sb.kReg()">Check In</button></div></div></div>
     <div id="k3" class="hide" style="text-align:center">
       <div style="font-size:4rem;color:#22c55e">✔</div>
@@ -113,27 +113,31 @@ nav button{flex:1;background:none;border:0;padding:.7rem .3rem;color:#94a3b8;fon
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check.js";
+import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch }
   from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 // 🔧 PASTE YOUR FIREBASE CONFIG (Project settings → General → Your apps)
 const cfg = { apiKey:"AIzaSyBQgsxkyAt9dymvhbUpfoenKQZB7bk1vAo", authDomain:"scuffed-boots-dance-check-in.firebaseapp.com", projectId:"scuffed-boots-dance-check-in", storageBucket:"scuffed-boots-dance-check-in.firebasestorage.app", messagingSenderId:"775164802540", appId:"1:775164802540:web:79bf769c0f6f637409fcc9" };
-const ADMIN_PIN="0509", EXIT_PIN="0000";
+const EXIT_PIN="0000", APPCHECK_KEY="", WAIVER="I agree to the Scuffed Boots Dance liability waiver and release.";
 
 const fb = initializeApp(cfg);
+if(APPCHECK_KEY)initializeAppCheck(fb,{provider:new ReCaptchaV3Provider(APPCHECK_KEY),isTokenAutoRefreshEnabled:true});
 const db = initializeFirestore(fb,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
-const S = {events:[],dancers:[],att:[]};
+const S = {events:[],dancers:[],att:[],roster:[]};
 const $ = id => document.getElementById(id);
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today = () => new Date().toISOString().split('T')[0];
-const w = p => p.catch(e=>alert('Cloud error: '+e.message));
+const w = p => p.catch(e=>{if(!admin&&e.code=='permission-denied')return;alert('Cloud error: '+e.message)});
 const aid = (e,s,d) => `${e}_${s}_${d}`;
 const isPresent = (e,s,d) => S.att.some(a=>a.eventId==e&&a.studentId==s&&a.date==d);
 const isNew = d => d && (Date.now()-new Date(d))/864e5 <= 7;
 const byName = (a,b) => (a.name||'').localeCompare(b.name||'');
-const hint = x => S.dancers.filter(d=>(d.name||'').trim().toLowerCase()==(x.name||'').trim().toLowerCase()).length>1 ? ` <small style="font-weight:400;color:#64748b">${esc(x.phone?'…'+x.phone.slice(-4):(x.email||'').slice(0,2)+'…')}</small>` : '';
-let tab='events', ev=null, date=today(), kev=null, selfMode=false, pinMode='', pin='', kt=null, emails=[], search='';
+const hintOf = x => x.phone?'…'+String(x.phone).slice(-4):(x.email||'').slice(0,2)+'…';
+const hint = x => S.roster.filter(d=>(d.name||'').trim().toLowerCase()==(x.name||'').trim().toLowerCase()).length>1 ? ` <small style="font-weight:400;color:#64748b">${esc(x.hint)}</small>` : '';
+const passInfo = x => {let h='';if(x.passTotal){const left=x.passTotal-S.att.filter(a=>a.studentId==x.id&&a.date>=(x.passFrom||'')).length;h+=`<div class="sub" style="${left<=1?'color:#ef4444;font-weight:700':''}">🎟 ${left} of ${x.passTotal} visits left</div>`}return h+(x.waiverAt?`<div class="sub">✍ Waiver ${x.waiverAt.slice(0,10)}</div>`:'')};
+let admin=false, unsubs=[], syncing=false, dip, tab='events', ev=null, date=today(), kev=null, selfMode=false, pinMode='', pin='', kt=null, emails=[], search='';
 
 const csvRows = t => {const r=[];let c=[],f='',q=0;for(let i=0;i<t.length;i++){const h=t[i];if(q){if(h=='"'){if(t[i+1]=='"'){f+='"';i++}else q=0}else f+=h}else if(h=='"')q=1;else if(h==','){c.push(f);f=''}else if(h=='\n'||h=='\r'){if(h=='\r'&&t[i+1]=='\n')i++;c.push(f);f='';r.push(c);c=[]}else f+=h}if(f||c.length){c.push(f);r.push(c)}return r.filter(x=>x.join('').trim())};
 const dl = (name, rows) => {const csv=rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();a.remove()};
@@ -141,6 +145,15 @@ async function batch(ops){for(let i=0;i<ops.length;i+=400){const b=writeBatch(db
 
 const sb = window.sb = {
   fs(){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})},
+  async enter(){const a=getAuth(fb);if(!a.currentUser||a.currentUser.isAnonymous){try{await signInWithPopup(a,new GoogleAuthProvider())}catch(e){return alert('Sign-in failed: '+e.message)}}
+    $('land').classList.add('hide');$('app').classList.remove('hide');sb.render()},
+  out(){signOut(getAuth(fb))},
+  install(){if(dip){dip.prompt();dip=null;$('inst').classList.add('hide')}},
+  syncRoster(){if(syncing||!S._dancers||!S._roster)return;
+    const want=new Map(S.dancers.map(d=>[d.id,{id:d.id,name:d.name||'',hint:hintOf(d)}])),have=new Map(S.roster.map(r=>[r.id,r])),ops=[];
+    want.forEach((r,id)=>{const h=have.get(id);if(!h||h.name!==r.name||h.hint!==r.hint)ops.push(b=>b.set(doc(db,'roster',id),r))});
+    have.forEach((r,id)=>{if(!want.has(id))ops.push(b=>b.delete(doc(db,'roster',id)))});
+    if(!ops.length)return;syncing=true;batch(ops).catch(()=>{}).finally(()=>syncing=false)},
   home(){$('app').classList.add('hide');$('land').classList.remove('hide')},
   nav(t){tab=t;ev=null;document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));sb.render()},
   close(){$('modal').classList.add('hide')},
@@ -190,11 +203,11 @@ const sb = window.sb = {
   // ---- dancers ----
   rDan(m){m.innerHTML=`<div class="row"><input type="file" id="csvin" accept=".csv" class="hide" onchange="sb.impCSV(this)">
     <button class="btn o" style="flex:1" onclick="document.getElementById('csvin').click()">📂 Import CSV</button><button class="btn o" style="flex:1" onclick="sb.expCSV()">💾 Export CSV</button>
-    <button class="btn o" style="flex:1" onclick="sb.mergeDup()">👥 Merge Duplicates</button><button class="btn o" style="flex:1" onclick="sb.backup()">⬇ Backup</button></div>
+    <button class="btn o" style="flex:1" onclick="sb.mergeDup()">👥 Merge Duplicates</button><button class="btn o" style="flex:1" onclick="sb.backup()">⬇ Backup</button><button class="btn o" style="flex:1" onclick="sb.expMail()">✉ Email-tool CSV</button></div>
     <div class="row"><input id="ds" class="in" style="flex:2;margin:0" placeholder="Search dancers..." oninput="sb.dList()"><button class="btn b" onclick="sb.emailGroup('all')">📧 Email All</button></div>
     <div id="dl"></div><button class="btn p fab" onclick="sb.dModal()">+</button>`;sb.dList()},
   dCard(x,team){return `<div class="card"><div style="display:flex;align-items:center;flex:1;overflow:hidden"><div class="av">${esc((x.name||'?')[0]).toUpperCase()}</div><div style="overflow:hidden"><div style="font-weight:700">${esc(x.name)}${!team&&isNew(x.joined)?'<span class="badge nw">New</span>':''}${x.isTeamMember?'<span class="badge tm">Team</span>':''}</div>
-    ${x.email?`<div class="sub">📧 ${esc(x.email)}</div>`:''}${x.phone?`<div class="sub">📞 ${esc(x.phone)}</div>`:''}</div></div>
+    ${x.email?`<div class="sub">📧 ${esc(x.email)}</div>`:''}${x.phone?`<div class="sub">📞 ${esc(x.phone)}</div>`:''}${passInfo(x)}</div></div>
     <div><button class="ic" onclick="sb.dHist('${x.id}')">🕘</button><button class="ic" onclick="sb.dModal('${x.id}')">✎</button>${team?'':`<button class="ic" onclick="sb.dDel('${x.id}')">🗑</button>`}</div></div>`},
   dList(){const l=$('dl');if(!l)return;const s=($('ds')?.value||'').toLowerCase();
     l.innerHTML=S.dancers.filter(x=>(x.name||'').toLowerCase().includes(s)).sort(byName).map(x=>sb.dCard(x)).join('')},
@@ -204,9 +217,9 @@ const sb = window.sb = {
     l.innerHTML=f.length?f.map(x=>sb.dCard(x,1)).join(''):'<div class="card" style="display:block;text-align:center;color:#94a3b8">No team members yet. Edit a dancer to mark them as Team.</div>'},
   dModal(id){const x=S.dancers.find(d=>d.id==id)||{};
     sb.modal(`<h3>${id?'Edit':'Add'} Dancer</h3><input id="fn" class="in" placeholder="Name" value="${esc(x.name)}"><input id="fe" class="in" placeholder="Email" value="${esc(x.email)}"><input id="fp" class="in" placeholder="Phone" value="${esc(x.phone)}">
-    <label style="display:flex;gap:.5rem;align-items:center;margin:.5rem 0 1rem;font-weight:700;color:#64748b"><input type="checkbox" id="ft" style="width:20px;height:20px" ${x.isTeamMember?'checked':''}> Team Member</label><button class="btn p w" onclick="sb.dSave('${id||''}')">Save</button>`)},
+    <div class="row"><input id="fpt" class="in" style="flex:1;margin:0" type="number" min="0" placeholder="Pass visits" value="${x.passTotal||''}"><input id="fpf" class="in" style="flex:1;margin:0" type="date" title="Pass start date" value="${x.passFrom||''}"></div><label style="display:flex;gap:.5rem;align-items:center;margin:.5rem 0 1rem;font-weight:700;color:#64748b"><input type="checkbox" id="ft" style="width:20px;height:20px" ${x.isTeamMember?'checked':''}> Team Member</label><button class="btn p w" onclick="sb.dSave('${id||''}')">Save</button>`)},
   dSave(id){const g=k=>$(k).value.trim();if(!g('fn'))return alert('Please enter a name.');
-    const o=S.dancers.find(d=>d.id==id)||{};const d={...o,id:id||'SBD-'+Date.now().toString(36),name:g('fn'),email:g('fe'),phone:g('fp'),isTeamMember:$('ft').checked,joined:o.joined||new Date().toISOString()};
+    const o=S.dancers.find(d=>d.id==id)||{};const d={...o,id:id||'SBD-'+Date.now().toString(36),name:g('fn'),email:g('fe'),phone:g('fp'),isTeamMember:$('ft').checked,passTotal:parseInt($('fpt').value)||0,passFrom:$('fpf').value,joined:o.joined||new Date().toISOString()};
     w(setDoc(doc(db,'dancers',d.id),d));sb.close()},
   dDel(id){if(confirm('Delete this dancer?'))w(deleteDoc(doc(db,'dancers',id)))},
   expCSV(){if(!S.dancers.length)return alert('No dancers to export.');
@@ -227,6 +240,7 @@ const sb = window.sb = {
     if(!confirm(`Merge ${n} duplicate dancer record(s)? Attendance moves to the oldest record.`))return;
     await batch(ops).catch(e=>alert(e.message));alert(`Merged ${n} duplicates.`)},
   backup(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({events:S.events,students:S.dancers,attendance:S.att})],{type:'application/json'}));a.download=`ScuffedBoots_Backup_${today()}.json`;a.click()},
+  expMail(){dl(`ScuffedBoots_EmailList_${today()}.csv`,[['Email Address','First Name','Last Name','Phone'],...S.dancers.filter(x=>x.email).map(x=>{const p=(x.name||'').trim().split(/\s+/);return [x.email,p[0]||'',p.slice(1).join(' '),x.phone||'']})])},
   dHist(id){const d=S.dancers.find(x=>x.id==id);if(!d)return;const r=S.att.filter(a=>a.studentId==id).sort((a,b)=>b.date.localeCompare(a.date));
     sb.modal(`<h3 style="margin-top:0">${esc(d.name)}</h3><p class="sub">${r.length} check-in(s)${r[0]?' • last visit '+r[0].date:''}</p>`+(r.slice(0,30).map(a=>`<div class="card"><span>${a.date}</span><span class="sub">${esc((S.events.find(e=>e.id==a.eventId)||{name:'Unknown event'}).name)}</span></div>`).join('')||'<div class="sub">No visits yet.</div>'))},
 
@@ -271,19 +285,20 @@ const sb = window.sb = {
     sb.modal(`<h3 style="text-align:center;margin-top:0">Self Check-In</h3><img id="qrimg" style="width:100%;max-width:340px;display:block;margin:0 auto" alt="QR code" src="${mk()}"><p style="text-align:center;font-weight:700;color:#64748b">Scan with your phone to skip the line!<br><small style="font-weight:400">Code refreshes every minute</small></p>`);
     const t=setInterval(()=>{if($('modal').classList.contains('hide'))return clearInterval(t);$('qrimg').src=mk()},60000)},
   kList(){const s=($('ks').value||'').toLowerCase();if(!s){$('kl').innerHTML='';return}
-    $('kl').innerHTML=S.dancers.filter(x=>(x.name||'').toLowerCase().includes(s)).sort(byName).map(x=>`<button class="kb" onclick="sb.kIn('${x.id}')">${esc(x.name)}${hint(x)}</button>`).join('')},
-  kIn(sid){const d=S.dancers.find(x=>x.id==sid),dt=today();
+    $('kl').innerHTML=S.roster.filter(x=>(x.name||'').toLowerCase().includes(s)).sort(byName).map(x=>`<button class="kb" onclick="sb.kIn('${x.id}')">${esc(x.name)}${hint(x)}</button>`).join('')},
+  kIn(sid){const d=S.roster.find(x=>x.id==sid)||S.dancers.find(x=>x.id==sid),dt=today();
     if(!isPresent(kev.id,sid,dt))w(setDoc(doc(db,'attendance',aid(kev.id,sid,dt)),{eventId:kev.id,studentId:sid,date:dt,status:'present'}));
     $('kw').innerText=d?d.name:'';['k1','k2'].forEach(i=>$(i).classList.add('hide'));$('k3').classList.remove('hide');
     clearTimeout(kt);kt=setTimeout(sb.kDone,selfMode?20000:8000)},
   kNew(){$('nn').value=$('ks').value;$('k1').classList.add('hide');$('k2').classList.remove('hide')},
   kReg(){const n=$('nn').value.trim();if(!n)return alert('Please enter a name to register.');
+    if(!$('nw').checked)return alert('Please accept the waiver to register.');
     const em=$('ne').value.trim().toLowerCase(),dup=S.dancers.find(x=>(x.name||'').trim().toLowerCase()==n.toLowerCase()||(em&&(x.email||'').toLowerCase()==em));
     if(dup&&!confirm('Someone with this name or email is already registered. Tap Cancel and search for your name, or OK to register as a new dancer.'))return;
     const d={id:'SBD-'+Date.now().toString(36),name:n,email:$('ne').value.trim(),phone:$('np').value.trim(),isTeamMember:false,joined:new Date().toISOString()};
-    w(setDoc(doc(db,'dancers',d.id),d));S.dancers.push(d);sb.kIn(d.id)},
+    d.waiverAt=new Date().toISOString();const r={id:d.id,name:d.name,hint:hintOf(d)};w(setDoc(doc(db,'dancers',d.id),d));w(setDoc(doc(db,'roster',d.id),r));S.roster.push(r);sb.kIn(d.id)},
   kDone(){clearTimeout(kt);sb.kReset()},
-  kReset(){['ks','nn','ne','np'].forEach(i=>$(i).value='');$('kl').innerHTML='';['k2','k3'].forEach(i=>$(i).classList.add('hide'));$('k1').classList.remove('hide')}
+  kReset(){['ks','nn','ne','np'].forEach(i=>$(i).value='');$('nw').checked=false;$('kl').innerHTML='';['k2','k3'].forEach(i=>$(i).classList.add('hide'));$('k1').classList.remove('hide')}
 };
 
 // PIN pad
@@ -304,11 +319,17 @@ function paint(){
     else if(tab=='dancers')sb.dList();else if(tab=='team')sb.tList();else if(tab=='events'||tab=='reports')sb.render()}
   if(!$('kiosk').classList.contains('hide'))sb.kList();
   if(selfMode&&!kev){const e=S.events.find(x=>x.id==attendId);if(e)sb.launchK(e.id)}
+  if(admin)sb.syncRoster();
 }
-signInAnonymously(getAuth(fb)).catch(e=>{$('st').innerText='⚠️ Sign-in failed: '+e.message;$('st').style.color='#ef4444'}).finally(()=>{
-  [['events','events'],['dancers','dancers'],['attendance','att']].forEach(([c,k])=>
-    onSnapshot(collection(db,c),s=>{S[k]=s.docs.map(d=>d.data());$('st').innerText='☁️ Connected (live sync)';$('st').style.color='#4ade80';paint()},
-      e=>{$('st').innerText='⚠️ '+e.message;$('st').style.color='#ef4444'}))});
+$('wt').innerText=WAIVER;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;$('inst').classList.remove('hide')});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+const bad=e=>{$('st').innerText='⚠️ '+e.message;$('st').style.color='#ef4444'};
+const listen=(c,k)=>unsubs.push(onSnapshot(collection(db,c),s=>{S[k]=s.docs.map(d=>d.data());S['_'+k]=1;paint()},e=>{bad(e);if(admin&&e.code=='permission-denied'&&c=='dancers'){alert('This Google account is not an approved admin.');signOut(getAuth(fb));sb.home()}}));
+onAuthStateChanged(getAuth(fb),u=>{unsubs.forEach(f=>f());unsubs=[];S.dancers=[];S.att=[];S._dancers=S._roster=0;
+  if(!u){signInAnonymously(getAuth(fb)).catch(bad);return}
+  admin=!u.isAnonymous;$('st').innerText=admin?'🔑 Signed in: '+u.email:'☁️ Connected (guest)';$('st').style.color='#4ade80';
+  listen('events','events');listen('roster','roster');if(admin){listen('dancers','dancers');listen('attendance','att')}});
 </script>
 </body>
 </html>
