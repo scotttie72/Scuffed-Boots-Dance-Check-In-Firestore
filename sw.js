@@ -1,5 +1,5 @@
 // Bump CACHE when you deploy a new index.html so members get the update.
-const CACHE = 'sb-vault-1.3.0';
+const CACHE = 'sb-vault-1.3.1';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 const STATIC_HOSTS = ['cdn.jsdelivr.net', 'www.gstatic.com', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
