@@ -113,7 +113,6 @@ nav button{flex:1;background:none;border:0;padding:.7rem .3rem;color:#94a3b8;fon
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check.js";
 import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch }
   from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
@@ -123,7 +122,7 @@ const cfg = { apiKey:"AIzaSyBQgsxkyAt9dymvhbUpfoenKQZB7bk1vAo", authDomain:"scuf
 const EXIT_PIN="0000", APPCHECK_KEY="", WAIVER="I agree to the Scuffed Boots Dance liability waiver and release.";
 
 const fb = initializeApp(cfg);
-if(APPCHECK_KEY)initializeAppCheck(fb,{provider:new ReCaptchaV3Provider(APPCHECK_KEY),isTokenAutoRefreshEnabled:true});
+if(APPCHECK_KEY)import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check.js').then(m=>m.initializeAppCheck(fb,{provider:new m.ReCaptchaV3Provider(APPCHECK_KEY),isTokenAutoRefreshEnabled:true})).catch(e=>console.warn('App Check',e));
 const db = initializeFirestore(fb,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
 const S = {events:[],dancers:[],att:[],roster:[]};
 const $ = id => document.getElementById(id);
