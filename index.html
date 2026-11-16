@@ -84,12 +84,12 @@ nav button{flex:1;background:none;border:0;padding:.7rem .3rem;color:#94a3b8;fon
   <div class="km">
     <div id="k1">
       <h2 style="text-align:center">Find Your Name</h2>
-      <input id="ks" class="in" style="font-size:1.4rem;padding:1.1rem;border:4px solid var(--p)" placeholder="Start typing..." oninput="sb.kList()">
+      <input id="ks" class="in" style="font-size:1.4rem;padding:1.1rem;border:4px solid var(--p)" placeholder="Type your name or last 4 of phone" oninput="sb.kList()">
       <button class="kb" style="background:rgba(255,255,255,.1);color:#94a3b8;text-align:center;border:2px dashed #475569" onclick="sb.kNew()">+ I'm New</button>
       <div id="kl"></div>
     </div>
     <div id="k2" class="hide"><h2 style="text-align:center">Registration</h2>
-      <div class="kf"><label>FULL NAME</label><input id="nn" class="in"><label>EMAIL</label><input id="ne" class="in" type="email"><label>PHONE (optional)</label><input id="np" class="in" type="tel"><label style="display:flex;gap:.6rem;align-items:center;margin:.3rem 0 1rem;font-size:.85rem;color:#0f172a;font-weight:600"><input type="checkbox" id="nw" style="width:24px;height:24px;flex:none"><span id="wt"></span></label>
+      <div class="kf"><label>FULL NAME</label><input id="nn" class="in"><label>EMAIL</label><input id="ne" class="in" type="email"><label>PHONE (optional)</label><input id="np" class="in" type="tel"><label style="display:flex;gap:.6rem;align-items:center;margin:.3rem 0 1rem;font-size:.85rem;color:#0f172a;font-weight:600"><input type="checkbox" id="nw" style="width:24px;height:24px;flex:none"><span id="wt"></span></label><canvas id="sig" width="600" height="160" style="width:100%;height:110px;border:2px dashed #cbd5e1;border-radius:10px;touch-action:none;background:#f8fafc"></canvas><div class="sub" style="margin-bottom:1rem">Sign above • <a href="#" onclick="sb.clearSig();return false">clear</a></div>
         <div class="row"><button class="btn o" style="flex:1" onclick="sb.kReset()">Cancel</button><button class="btn p" style="flex:1" onclick="sb.kReg()">Check In</button></div></div></div>
     <div id="k3" class="hide" style="text-align:center">
       <div style="font-size:4rem;color:#22c55e">✔</div>
@@ -114,17 +114,17 @@ nav button{flex:1;background:none;border:0;padding:.7rem .3rem;color:#94a3b8;fon
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch }
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch, query, orderBy, limit }
   from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 // 🔧 PASTE YOUR FIREBASE CONFIG (Project settings → General → Your apps)
 const cfg = { apiKey:"AIzaSyBQgsxkyAt9dymvhbUpfoenKQZB7bk1vAo", authDomain:"scuffed-boots-dance-check-in.firebaseapp.com", projectId:"scuffed-boots-dance-check-in", storageBucket:"scuffed-boots-dance-check-in.firebasestorage.app", messagingSenderId:"775164802540", appId:"1:775164802540:web:79bf769c0f6f637409fcc9" };
-const EXIT_PIN="0000", APPCHECK_KEY="", WAIVER="I agree to the Scuffed Boots Dance liability waiver and release.";
+const EXIT_PIN="0000", APPCHECK_KEY="", WAIVER="I agree to the Scuffed Boots Dance liability waiver and release.", WAIVER_V="v1";
 
 const fb = initializeApp(cfg);
 if(APPCHECK_KEY)import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check.js').then(m=>m.initializeAppCheck(fb,{provider:new m.ReCaptchaV3Provider(APPCHECK_KEY),isTokenAutoRefreshEnabled:true})).catch(e=>console.warn('App Check',e));
 const db = initializeFirestore(fb,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
-const S = {events:[],dancers:[],att:[],roster:[]};
+const S = {events:[],dancers:[],att:[],roster:[],trash:[],log:[]};
 const $ = id => document.getElementById(id);
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today = () => new Date().toISOString().split('T')[0];
@@ -135,13 +135,19 @@ const isNew = d => d && (Date.now()-new Date(d))/864e5 <= 7;
 const byName = (a,b) => (a.name||'').localeCompare(b.name||'');
 const hintOf = x => x.phone?'…'+String(x.phone).slice(-4):(x.email||'').slice(0,2)+'…';
 const hint = x => S.roster.filter(d=>(d.name||'').trim().toLowerCase()==(x.name||'').trim().toLowerCase()).length>1 ? ` <small style="font-weight:400;color:#64748b">${esc(x.hint)}</small>` : '';
-const passInfo = x => {let h='';if(x.passTotal){const left=x.passTotal-S.att.filter(a=>a.studentId==x.id&&a.date>=(x.passFrom||'')).length;h+=`<div class="sub" style="${left<=1?'color:#ef4444;font-weight:700':''}">🎟 ${left} of ${x.passTotal} visits left</div>`}return h+(x.waiverAt?`<div class="sub">✍ Waiver ${x.waiverAt.slice(0,10)}</div>`:'')};
+const passInfo = x => {let h='';if(x.passTotal){const left=x.passTotal-S.att.filter(a=>a.studentId==x.id&&a.date>=(x.passFrom||'')).length;h+=`<div class="sub" style="${left<=1?'color:#ef4444;font-weight:700':''}">🎟 ${left} of ${x.passTotal} visits left</div>`}return h+(x.waiverAt?`<div class="sub">✍ Waiver ${x.waiverV||''} ${x.waiverAt.slice(0,10)}</div>`:'')};
 let admin=false, unsubs=[], syncing=false, dip, tab='events', ev=null, date=today(), kev=null, selfMode=false, pinMode='', pin='', kt=null, emails=[], search='';
 
 const csvRows = t => {const r=[];let c=[],f='',q=0;for(let i=0;i<t.length;i++){const h=t[i];if(q){if(h=='"'){if(t[i+1]=='"'){f+='"';i++}else q=0}else f+=h}else if(h=='"')q=1;else if(h==','){c.push(f);f=''}else if(h=='\n'||h=='\r'){if(h=='\r'&&t[i+1]=='\n')i++;c.push(f);f='';r.push(c);c=[]}else f+=h}if(f||c.length){c.push(f);r.push(c)}return r.filter(x=>x.join('').trim())};
 const dl = (name, rows) => {const csv=rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();a.remove()};
 async function batch(ops){for(let i=0;i<ops.length;i+=400){const b=writeBatch(db);ops.slice(i,i+400).forEach(o=>o(b));await b.commit()}}
 
+let tt;const toast=(m,undo)=>{let t=$('toast');if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:90px;background:#1e293b;color:#fff;padding:.7rem 1rem;border-radius:10px;z-index:400;display:flex;gap:1rem;align-items:center;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.3)';document.body.appendChild(t)}
+  t.innerHTML=`<span>${esc(m)}</span>`;t.style.display='flex';if(undo){const b=document.createElement('button');b.textContent='Undo';b.style.cssText='background:#f59e0b;border:0;border-radius:6px;padding:.3rem .7rem;font-weight:800';b.onclick=()=>{undo();t.style.display='none'};t.appendChild(b)}clearTimeout(tt);tt=setTimeout(()=>t.style.display='none',6000)};
+const logAct=a=>admin&&setDoc(doc(collection(db,'log')),{t:new Date().toISOString(),who:getAuth(fb).currentUser?.email||'?',a}).catch(()=>{});
+const beep=()=>{try{const c=new AudioContext(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.1;o.start();o.stop(c.currentTime+.15)}catch(e){}};
+const fmt=n=>'$'+(Number(n)||0).toFixed(2);
+const paidOf=id=>{const a=S.att.find(a=>a.eventId==ev.id&&a.studentId==id&&a.date==date);return a&&a.paid?fmt(a.paid)+' ':''};
 const sb = window.sb = {
   fs(){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})},
   async enter(){const a=getAuth(fb);if(!a.currentUser||a.currentUser.isAnonymous){const pr=new GoogleAuthProvider();try{await signInWithPopup(a,pr)}catch(e){if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment','auth/web-storage-unsupported'].includes(e.code)){return signInWithRedirect(a,pr)}return alert('Sign-in failed: '+e.code+' — '+e.message)}}
@@ -171,7 +177,7 @@ const sb = window.sb = {
 
   // ---- events ----
   rEv(m,h){h.innerHTML='<button class="btn p sm" onclick="sb.kselShow()">🚀 KIOSK</button>';
-    m.innerHTML='<h2 style="margin-top:0">Events</h2>'+S.events.map(e=>`<div class="card" onclick="sb.openEv('${e.id}')"><b>${esc(e.name)}</b><button class="ic" onclick="event.stopPropagation();sb.delEv('${e.id}')">🗑</button></div>`).join('')+'<button class="btn o w" style="border:2px dashed #cbd5e1" onclick="sb.addEv()">+ Add Event</button>'},
+    m.innerHTML='<h2 style="margin-top:0">Events</h2>'+S.events.map(e=>`<div class="card" onclick="sb.openEv('${e.id}')"><b>${esc(e.name)}</b><span><button class="ic" onclick="event.stopPropagation();sb.renEv('${e.id}')">✎</button><button class="ic" onclick="event.stopPropagation();sb.delEv('${e.id}')">🗑</button></span></div>`).join('')+'<button class="btn o w" style="border:2px dashed #cbd5e1" onclick="sb.addEv()">+ Add Event</button>'},
   addEv(){const n=prompt('Event name');if(n&&n.trim()){const e={id:Date.now(),name:n.trim()};w(setDoc(doc(db,'events',String(e.id)),e))}},
   delEv(id){if(!confirm('Delete this event and its attendance?'))return;
     batch([b=>b.delete(doc(db,'events',String(id))),...S.att.filter(a=>a.eventId==id).map(a=>b=>b.delete(doc(db,'attendance',aid(a.eventId,a.studentId,a.date))))]).catch(e=>alert(e.message))},
@@ -193,16 +199,23 @@ const sb = window.sb = {
     $('tl').innerHTML=team.length?team.map(x=>{const p=isPresent(ev.id,x.id,date);return `<label class="chip" style="background:${p?'#dbeafe':'#f1f5f9'}"><input type="checkbox" ${p?'checked':''} onchange="sb.tog('${x.id}')">${esc(x.name)}</label>`}).join(''):'<span class="sub">No team members yet.</span>';
     const s=search.toLowerCase();
     const f=S.dancers.filter(x=>{if(x.isTeamMember&&!s)return false;return s?(x.name||'').toLowerCase().includes(s):isPresent(ev.id,x.id,date)}).sort(byName);
-    $('al').innerHTML=f.length?f.map(x=>{const p=isPresent(ev.id,x.id,date);return `<div class="card" onclick="sb.tog('${x.id}')" style="cursor:pointer;${p?'background:#22c55e;color:#fff;border-color:#16a34a':''}"><b>${esc(x.name)}</b>${p?'✔':''}</div>`}).join(''):`<div style="text-align:center;color:#94a3b8;padding:2rem">${s?'No results found.':'No dancers checked in yet. Search above to check someone in.'}</div>`},
-  tog(sid){const r=doc(db,'attendance',aid(ev.id,sid,date));
-    w(isPresent(ev.id,sid,date)?deleteDoc(r):setDoc(r,{eventId:ev.id,studentId:sid,date,status:'present'}))},
+    $('al').innerHTML=f.length?f.map(x=>{const p=isPresent(ev.id,x.id,date);return `<div class="card" onclick="sb.tog('${x.id}')" style="cursor:pointer;${p?'background:#22c55e;color:#fff;border-color:#16a34a':''}"><b>${esc(x.name)}</b><span>${p?`${paidOf(x.id)}<button class="ic" style="color:inherit" onclick="event.stopPropagation();sb.pay('${x.id}')">$</button>✔`:''}</span></div>`}).join(''):`<div style="text-align:center;color:#94a3b8;padding:2rem">${s?'No results found.':'No dancers checked in yet. Search above to check someone in.'}</div>`},
+  tog(sid){const e=ev.id,d=date,r=doc(db,'attendance',aid(e,sid,d)),was=S.att.find(a=>a.eventId==e&&a.studentId==sid&&a.date==d);
+    if(was){w(deleteDoc(r));toast('Checked out',()=>w(setDoc(r,was)))}else{w(setDoc(r,{eventId:e,studentId:sid,date:d,status:'present'}));toast('Checked in',()=>w(deleteDoc(r)))}},
+  pay(sid){const a=S.att.find(x=>x.eventId==ev.id&&x.studentId==sid&&x.date==date);if(!a)return alert('Check them in first.');const v=prompt('Amount paid at the door ($)',a.paid||'');if(v===null)return;w(setDoc(doc(db,'attendance',aid(ev.id,sid,date)),{...a,paid:parseFloat(v)||0}));logAct('Payment '+fmt(v)+' for '+sid)},
+  renEv(id){const e=S.events.find(x=>x.id==id),n=prompt('Rename event',e.name);if(n&&n.trim()){w(setDoc(doc(db,'events',String(id)),{...e,name:n.trim()}));logAct('Renamed event '+e.name+' to '+n.trim())}},
+  trash(){sb.modal('<h3 style="margin-top:0">Trash</h3>'+(S.trash.map(x=>`<div class="card"><span>${esc(x.name)}</span><span><button class="btn o sm" onclick="sb.restore('${x.id}')">Restore</button> <button class="ic" onclick="sb.purge('${x.id}')">🗑</button></span></div>`).join('')||'<div class="sub">Trash is empty.</div>'))},
+  restore(id){w(setDoc(doc(db,'dancers',id),{deleted:false},{merge:true}));logAct('Restored dancer '+id);sb.close()},
+  purge(id){if(confirm('Delete forever? This cannot be undone.')){w(deleteDoc(doc(db,'dancers',id)));logAct('Purged dancer '+id);sb.close()}},
+  activity(){sb.modal('<h3 style="margin-top:0">Activity</h3>'+(S.log.map(l=>`<div class="card" style="display:block"><div class="sub" style="white-space:normal;color:#0f172a">${esc(l.a)}</div><div class="sub">${esc(l.who)} • ${esc(l.t.slice(0,16).replace('T',' '))}</div></div>`).join('')||'<div class="sub">No activity yet.</div>'))},
+  volunteer(){$('app').classList.add('hide');$('land').classList.add('hide');sb.kselShow();toast('Door mode: check-in only')},
   hist(){const h={};S.att.filter(a=>a.eventId==ev.id).forEach(a=>h[a.date]=(h[a.date]||0)+1);
     sb.modal('<h3>History</h3>'+Object.keys(h).sort().reverse().map(d=>`<div class="card" onclick="date='${d}';sb.close();sb.render()"><span>${d}</span><b>${h[d]}</b></div>`).join(''))},
 
   // ---- dancers ----
   rDan(m){m.innerHTML=`<div class="row"><input type="file" id="csvin" accept=".csv" class="hide" onchange="sb.impCSV(this)">
     <button class="btn o" style="flex:1" onclick="document.getElementById('csvin').click()">📂 Import CSV</button><button class="btn o" style="flex:1" onclick="sb.expCSV()">💾 Export CSV</button>
-    <button class="btn o" style="flex:1" onclick="sb.mergeDup()">👥 Merge Duplicates</button><button class="btn o" style="flex:1" onclick="sb.backup()">⬇ Backup</button><button class="btn o" style="flex:1" onclick="sb.expMail()">✉ Email-tool CSV</button></div>
+    <button class="btn o" style="flex:1" onclick="sb.mergeDup()">👥 Merge Duplicates</button><button class="btn o" style="flex:1" onclick="sb.backup()">⬇ Backup</button><button class="btn o" style="flex:1" onclick="sb.expMail()">✉ Email-tool CSV</button><button class="btn o" style="flex:1" onclick="sb.trash()">🗑 Trash</button><button class="btn o" style="flex:1" onclick="sb.activity()">📜 Activity</button></div>
     <div class="row"><input id="ds" class="in" style="flex:2;margin:0" placeholder="Search dancers..." oninput="sb.dList()"><button class="btn b" onclick="sb.emailGroup('all')">📧 Email All</button></div>
     <div id="dl"></div><button class="btn p fab" onclick="sb.dModal()">+</button>`;sb.dList()},
   dCard(x,team){return `<div class="card"><div style="display:flex;align-items:center;flex:1;overflow:hidden"><div class="av">${esc((x.name||'?')[0]).toUpperCase()}</div><div style="overflow:hidden"><div style="font-weight:700">${esc(x.name)}${!team&&isNew(x.joined)?'<span class="badge nw">New</span>':''}${x.isTeamMember?'<span class="badge tm">Team</span>':''}</div>
@@ -219,8 +232,8 @@ const sb = window.sb = {
     <div class="row"><input id="fpt" class="in" style="flex:1;margin:0" type="number" min="0" placeholder="Pass visits" value="${x.passTotal||''}"><input id="fpf" class="in" style="flex:1;margin:0" type="date" title="Pass start date" value="${x.passFrom||''}"></div><label style="display:flex;gap:.5rem;align-items:center;margin:.5rem 0 1rem;font-weight:700;color:#64748b"><input type="checkbox" id="ft" style="width:20px;height:20px" ${x.isTeamMember?'checked':''}> Team Member</label><button class="btn p w" onclick="sb.dSave('${id||''}')">Save</button>`)},
   dSave(id){const g=k=>$(k).value.trim();if(!g('fn'))return alert('Please enter a name.');
     const o=S.dancers.find(d=>d.id==id)||{};const d={...o,id:id||'SBD-'+Date.now().toString(36),name:g('fn'),email:g('fe'),phone:g('fp'),isTeamMember:$('ft').checked,passTotal:parseInt($('fpt').value)||0,passFrom:$('fpf').value,joined:o.joined||new Date().toISOString()};
-    w(setDoc(doc(db,'dancers',d.id),d));sb.close()},
-  dDel(id){if(confirm('Delete this dancer?'))w(deleteDoc(doc(db,'dancers',id)))},
+    w(setDoc(doc(db,'dancers',d.id),d));logAct((id?'Edited':'Added')+' dancer '+d.name);sb.close()},
+  dDel(id){const x=S.dancers.find(d=>d.id==id);if(!confirm('Move this dancer to Trash?'))return;w(setDoc(doc(db,'dancers',id),{deleted:true},{merge:true}));logAct('Trashed dancer '+(x?x.name:id));toast('Moved to Trash',()=>w(setDoc(doc(db,'dancers',id),{deleted:false},{merge:true})))},
   expCSV(){if(!S.dancers.length)return alert('No dancers to export.');
     dl(`ScuffedBoots_Dancers_${today()}.csv`,[['ID','Name','Email','Phone','Team Member','Joined'],...S.dancers.map(s=>[s.id,s.name,s.email,s.phone,s.isTeamMember?'Yes':'No',s.joined])])},
   impCSV(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=async e=>{
@@ -258,15 +271,19 @@ const sb = window.sb = {
   // ---- reports ----
   rRep(m){const ses=new Set(S.att.map(a=>a.eventId+a.date)).size;
     const ss={};S.att.forEach(a=>{const k=a.date+'|'+a.eventId;ss[k]=(ss[k]||0)+1});const recent=Object.entries(ss).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,8),mx=Math.max(1,...recent.map(r=>r[1]));
+    const first={},last={};S.att.forEach(a=>{if(!first[a.studentId]||a.date<first[a.studentId])first[a.studentId]=a.date;if(!last[a.studentId]||a.date>last[a.studentId])last[a.studentId]=a.date});
+    const newOn={};S.att.forEach(a=>{if(first[a.studentId]==a.date){const k=a.date+'|'+a.eventId;newOn[k]=(newOn[k]||0)+1}});
+    const cut=new Date(Date.now()-30*864e5).toISOString().split('T')[0],lapsed=S.dancers.filter(x=>last[x.id]&&last[x.id]<cut).length,rev=S.att.reduce((t,a)=>t+(Number(a.paid)||0),0);
     m.innerHTML=`<h2 style="margin-top:0">Reports & Analytics</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
     <div class="card" style="display:block;text-align:center"><h1 style="margin:.4rem;color:var(--pd)">${S.att.length}</h1><small>CHECK-INS</small></div>
     <div class="card" style="display:block;text-align:center"><h1 style="margin:.4rem;color:var(--pd)">${ses}</h1><small>SESSIONS</small></div></div>
-    <h3 style="margin:0 0 .6rem">Recent Sessions</h3>${recent.map(([k,n])=>{const [d,e]=k.split('|');return `<div style="margin-bottom:.6rem"><div class="sub">${d} • ${esc((S.events.find(x=>x.id==e)||{name:'Unknown'}).name)} — <b>${n}</b></div><div style="background:#fcd34d;height:10px;border-radius:5px;width:${n/mx*100}%"></div></div>`}).join('')||'<div class="sub">No sessions yet.</div>'}
-    <button class="btn b w" style="margin:1rem 0" onclick="sb.report()">📥 Download All Events</button>
+    <div class="sub" style="margin:-.5rem 0 1rem;white-space:normal">Door revenue: <b>${fmt(rev)}</b> • Not seen in 30+ days: <b>${lapsed}</b></div>
+    <h3 style="margin:0 0 .6rem">Recent Sessions</h3>${recent.map(([k,n])=>{const [d,e]=k.split('|');return `<div style="margin-bottom:.6rem"><div class="sub">${d} • ${esc((S.events.find(x=>x.id==e)||{name:'Unknown'}).name)} — <b>${n}</b> (${newOn[k]||0} new)</div><div style="background:#fcd34d;height:10px;border-radius:5px;width:${n/mx*100}%"></div></div>`}).join('')||'<div class="sub">No sessions yet.</div>'}
+    <div class="row"><input id="rf" type="date" class="in" style="flex:1;margin:0"><input id="rt" type="date" class="in" style="flex:1;margin:0"></div><button class="btn b w" style="margin:0 0 1rem" onclick="sb.report()">📥 Download All Events</button>
     <div class="row"><select id="rs" class="in" style="flex:2;margin:0"><option value="">-- Select Event --</option>${S.events.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')}</select><button class="btn o" style="flex:1" onclick="sb.report(document.getElementById('rs').value||null)">📥 Export</button></div>
     <button class="btn d w" style="margin-top:2rem" onclick="sb.reset()">🚨 Reset All Attendance History</button>`},
-  report(id){if(id===null)return alert('Select an event first.');{const rows=S.att.filter(a=>id===undefined||a.eventId==id);if(!rows.length)return alert('No attendance records found.');
-    dl(`ScuffedBoots_Attendance_${today()}.csv`,[['Date','Event','Dancer','Email','Phone','Team Member'],...rows.sort((a,b)=>a.date.localeCompare(b.date)).map(a=>{const e=S.events.find(x=>x.id==a.eventId)||{name:'Unknown Event'},s=S.dancers.find(x=>x.id==a.studentId)||{name:'Unknown Dancer'};return [a.date,e.name,s.name,s.email,s.phone,s.isTeamMember?'Yes':'No']})])}},
+  report(id){if(id===null)return alert('Select an event first.');{const f=$('rf')?.value||'',t=$('rt')?.value||'';const rows=S.att.filter(a=>(id===undefined||a.eventId==id)&&(!f||a.date>=f)&&(!t||a.date<=t));if(!rows.length)return alert('No attendance records found.');
+    dl(`ScuffedBoots_Attendance_${today()}.csv`,[['Date','Event','Dancer','Email','Phone','Team Member','Paid'],...rows.sort((a,b)=>a.date.localeCompare(b.date)).map(a=>{const e=S.events.find(x=>x.id==a.eventId)||{name:'Unknown Event'},s=S.dancers.find(x=>x.id==a.studentId)||{name:'Unknown Dancer'};return [a.date,e.name,s.name,s.email,s.phone,s.isTeamMember?'Yes':'No',a.paid||'']})])}},
   reset(){if(prompt('Type RESET to clear all attendance history')==='RESET')batch(S.att.map(a=>b=>b.delete(doc(db,'attendance',aid(a.eventId,a.studentId,a.date))))).catch(e=>alert(e.message))},
 
   // ---- import old backup (.json from the Supabase version) ----
@@ -283,23 +300,33 @@ const sb = window.sb = {
   qr(){const mk=()=>`https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&data=${encodeURIComponent(location.href.split('?')[0].split('#')[0]+'?attend='+kev.id+'&tk='+btoa(Date.now().toString()))}`;
     sb.modal(`<h3 style="text-align:center;margin-top:0">Self Check-In</h3><img id="qrimg" style="width:100%;max-width:340px;display:block;margin:0 auto" alt="QR code" src="${mk()}"><p style="text-align:center;font-weight:700;color:#64748b">Scan with your phone to skip the line!<br><small style="font-weight:400">Code refreshes every minute</small></p>`);
     const t=setInterval(()=>{if($('modal').classList.contains('hide'))return clearInterval(t);$('qrimg').src=mk()},60000)},
-  kList(){const s=($('ks').value||'').toLowerCase();if(!s){$('kl').innerHTML='';return}
-    $('kl').innerHTML=S.roster.filter(x=>(x.name||'').toLowerCase().includes(s)).sort(byName).map(x=>`<button class="kb" onclick="sb.kIn('${x.id}')">${esc(x.name)}${hint(x)}</button>`).join('')},
+  kList(){const s=($('ks').value||'').toLowerCase().trim();let me=null;try{me=S.roster.find(x=>x.id==localStorage.getItem('sb_me'))}catch(e){}
+    if(!s){$('kl').innerHTML=me?`<button class="kb" style="background:#fde68a" onclick="sb.kIn('${me.id}')">👋 Welcome back — check in as ${esc(me.name)}</button>`:'';return}
+    $('kl').innerHTML=S.roster.filter(x=>(x.name||'').toLowerCase().includes(s)||(/^\d{4}$/.test(s)&&String(x.hint||'').replace(/\D/g,'')==s)).sort(byName).map(x=>`<button class="kb" onclick="sb.kIn('${x.id}')">${esc(x.name)}${hint(x)}</button>`).join('')},
   kIn(sid){const d=S.roster.find(x=>x.id==sid)||S.dancers.find(x=>x.id==sid),dt=today();
     if(!isPresent(kev.id,sid,dt))w(setDoc(doc(db,'attendance',aid(kev.id,sid,dt)),{eventId:kev.id,studentId:sid,date:dt,status:'present'}));
-    $('kw').innerText=d?d.name:'';['k1','k2'].forEach(i=>$(i).classList.add('hide'));$('k3').classList.remove('hide');
+    $('kw').innerText=d?d.name:'';beep();if(selfMode)try{localStorage.setItem('sb_me',sid)}catch(e){}['k1','k2'].forEach(i=>$(i).classList.add('hide'));$('k3').classList.remove('hide');
     clearTimeout(kt);kt=setTimeout(sb.kDone,selfMode?20000:8000)},
   kNew(){$('nn').value=$('ks').value;$('k1').classList.add('hide');$('k2').classList.remove('hide')},
   kReg(){const n=$('nn').value.trim();if(!n)return alert('Please enter a name to register.');
     if(!$('nw').checked)return alert('Please accept the waiver to register.');
+    if(!sigInk)return alert('Please sign in the box.');
     const em=$('ne').value.trim().toLowerCase(),dup=S.dancers.find(x=>(x.name||'').trim().toLowerCase()==n.toLowerCase()||(em&&(x.email||'').toLowerCase()==em));
     if(dup&&!confirm('Someone with this name or email is already registered. Tap Cancel and search for your name, or OK to register as a new dancer.'))return;
     const d={id:'SBD-'+Date.now().toString(36),name:n,email:$('ne').value.trim(),phone:$('np').value.trim(),isTeamMember:false,joined:new Date().toISOString()};
-    d.waiverAt=new Date().toISOString();const r={id:d.id,name:d.name,hint:hintOf(d)};w(setDoc(doc(db,'dancers',d.id),d));w(setDoc(doc(db,'roster',d.id),r));S.roster.push(r);sb.kIn(d.id)},
+    d.waiverAt=new Date().toISOString();d.waiverV=WAIVER_V;d.signature=$('sig').toDataURL('image/png');const r={id:d.id,name:d.name,hint:hintOf(d)};w(setDoc(doc(db,'dancers',d.id),d));w(setDoc(doc(db,'roster',d.id),r));S.roster.push(r);sb.kIn(d.id)},
   kDone(){clearTimeout(kt);sb.kReset()},
-  kReset(){['ks','nn','ne','np'].forEach(i=>$(i).value='');$('nw').checked=false;$('kl').innerHTML='';['k2','k3'].forEach(i=>$(i).classList.add('hide'));$('k1').classList.remove('hide')}
+  kReset(){['ks','nn','ne','np'].forEach(i=>$(i).value='');$('nw').checked=false;$('kl').innerHTML='';['k2','k3'].forEach(i=>$(i).classList.add('hide'));$('k1').classList.remove('hide');sb.kList();sb.clearSig()}
 };
 
+let sigInk=false;
+sb.clearSig=()=>{const c=$('sig');c.getContext('2d').clearRect(0,0,c.width,c.height);sigInk=false};
+(()=>{const c=$('sig');let dn=false;const pos=e=>{const r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]};
+ c.addEventListener('pointerdown',e=>{dn=true;const x=c.getContext('2d');x.lineWidth=3;x.lineCap='round';x.beginPath();x.moveTo(...pos(e))});
+ c.addEventListener('pointermove',e=>{if(!dn)return;const x=c.getContext('2d');x.lineTo(...pos(e));x.stroke();sigInk=true});
+ ['pointerup','pointerleave'].forEach(t=>c.addEventListener(t,()=>dn=false))})();
+window.addEventListener('offline',()=>toast('Offline — changes will sync when you reconnect'));
+window.addEventListener('online',()=>toast('Back online — syncing'));
 // PIN pad
 $('pad').innerHTML=[1,2,3,4,5,6,7,8,9].map(n=>`<button onclick="sb.pinIn(${n})">${n}</button>`).join('')+`<button style="background:#ef4444" onclick="pin='';document.getElementById('pd').innerText='____'">C</button><button onclick="sb.pinIn(0)">0</button><button style="background:#64748b" onclick="document.getElementById('pinv').classList.add('hide')">X</button>`;
 window.pin=''; Object.defineProperty(window,'date',{get:()=>date,set:v=>date=v}); Object.defineProperty(window,'ev',{get:()=>ev,set:v=>ev=v}); Object.defineProperty(window,'search',{get:()=>search,set:v=>search=v});
@@ -324,11 +351,11 @@ $('wt').innerText=WAIVER;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;$('inst').classList.remove('hide')});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 const bad=e=>{$('st').innerText='⚠️ '+e.message;$('st').style.color='#ef4444'};
-const listen=(c,k)=>unsubs.push(onSnapshot(collection(db,c),s=>{S[k]=s.docs.map(d=>d.data());S['_'+k]=1;paint()},e=>{bad(e);if(admin&&e.code=='permission-denied'&&c=='dancers'){alert('This Google account is not an approved admin.');signOut(getAuth(fb));sb.home()}}));
-onAuthStateChanged(getAuth(fb),u=>{unsubs.forEach(f=>f());unsubs=[];S.dancers=[];S.att=[];S._dancers=S._roster=0;
+const listen=(c,k)=>unsubs.push(onSnapshot(collection(db,c),s=>{const a=s.docs.map(d=>d.data());if(k=='dancers'){S.dancers=a.filter(x=>!x.deleted);S.trash=a.filter(x=>x.deleted)}else S[k]=a;S['_'+k]=1;paint()},e=>{bad(e);if(admin&&e.code=='permission-denied'&&c=='dancers'){admin=false;sb.volunteer()}}));
+onAuthStateChanged(getAuth(fb),u=>{unsubs.forEach(f=>f());unsubs=[];S.dancers=[];S.att=[];S.trash=[];S._dancers=S._roster=0;
   if(!u){signInAnonymously(getAuth(fb)).catch(bad);return}
   admin=!u.isAnonymous;$('st').innerText=admin?'🔑 Signed in: '+u.email:'☁️ Connected (guest)';$('st').style.color='#4ade80';
-  listen('events','events');listen('roster','roster');if(admin){listen('dancers','dancers');listen('attendance','att')}});
+  listen('events','events');listen('roster','roster');if(admin){listen('dancers','dancers');listen('attendance','att');unsubs.push(onSnapshot(query(collection(db,'log'),orderBy('t','desc'),limit(50)),s=>{S.log=s.docs.map(d=>d.data())},()=>{}))}});
 </script>
 </body>
 </html>
